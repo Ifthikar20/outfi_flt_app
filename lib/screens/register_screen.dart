@@ -38,6 +38,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
     ));
   }
 
+  InputDecoration _fieldDecoration(String hint, IconData icon, {Widget? suffix}) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, size: 20),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: AppTheme.bgInput,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderSide: BorderSide(color: AppTheme.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderSide: BorderSide(color: AppTheme.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderSide: BorderSide(color: AppTheme.accent, width: 1.5),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -48,7 +70,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         backgroundColor: AppTheme.bgMain,
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -57,21 +79,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   onPressed: () => context.go('/login'),
                   icon: const Icon(Icons.arrow_back_ios_new, size: 20),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 20),
+
+                // Outfi logo
+                Center(
+                  child: Image.asset(
+                    AppTheme.logoPath,
+                    height: 48,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+                const SizedBox(height: 28),
 
                 Text(
                   'Create\naccount',
                   style: Theme.of(context)
                       .textTheme
                       .headlineLarge
-                      ?.copyWith(fontSize: 36, height: 1.1),
+                      ?.copyWith(
+                        fontSize: 34,
+                        height: 1.1,
+                        fontWeight: FontWeight.w800,
+                      ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Join thousands discovering amazing deals',
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  'Join and discover curated modest fashion',
+                  style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
                 ),
-                const SizedBox(height: 40),
+                const SizedBox(height: 36),
 
                 BlocBuilder<AuthBloc, AuthState>(
                   buildWhen: (prev, curr) => curr is AuthFailure,
@@ -106,28 +146,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextField(
                   controller: _nameController,
                   textCapitalization: TextCapitalization.words,
-                  decoration: const InputDecoration(
-                    hintText: 'Full name',
-                    prefixIcon: Icon(Icons.person_outline, size: 20),
-                  ),
+                  decoration: _fieldDecoration('Full name', Icons.person_outline),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    hintText: 'Email address',
-                    prefixIcon: Icon(Icons.email_outlined, size: 20),
-                  ),
+                  decoration: _fieldDecoration('Email address', Icons.email_outlined),
                 ),
                 const SizedBox(height: 14),
                 TextField(
                   controller: _passwordController,
                   obscureText: _obscure,
-                  decoration: InputDecoration(
-                    hintText: 'Password (min 8 characters)',
-                    prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                    suffixIcon: IconButton(
+                  decoration: _fieldDecoration(
+                    'Password (min 8 characters)',
+                    Icons.lock_outline,
+                    suffix: IconButton(
                       icon: Icon(
                         _obscure ? Icons.visibility_off : Icons.visibility,
                         size: 20,
@@ -138,22 +172,58 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                // Create account button — gold gradient
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is AuthLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : _handleRegister,
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5, color: Colors.white),
-                              )
-                            : const Text('Create Account'),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: isLoading
+                              ? null
+                              : const LinearGradient(
+                                  colors: [Color(0xFFD4B87A), Color(0xFFC9A96E), Color(0xFFB8944F)],
+                                ),
+                          color: isLoading ? AppTheme.textMuted : null,
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                          boxShadow: isLoading
+                              ? null
+                              : [
+                                  BoxShadow(
+                                    color: AppTheme.accent.withValues(alpha: 0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                        ),
+                        child: ElevatedButton(
+                          onPressed: isLoading ? null : _handleRegister,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.transparent,
+                            shadowColor: Colors.transparent,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            ),
+                          ),
+                          child: isLoading
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5, color: Colors.white),
+                                )
+                              : const Text(
+                                  'Create Account',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                        ),
                       ),
                     );
                   },
@@ -171,7 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextSpan(
                             text: 'Sign In',
                             style: TextStyle(
-                              color: AppTheme.primary,
+                              color: AppTheme.accent,
                               fontWeight: FontWeight.w600,
                             ),
                           ),

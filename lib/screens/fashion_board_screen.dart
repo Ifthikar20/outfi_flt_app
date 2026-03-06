@@ -333,7 +333,7 @@ class _BoardCard extends StatelessWidget {
                         : _MiniThumbnail(items: items),
                   ),
                 ),
-                // Title + date
+                // Title + date + logo
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -350,15 +350,24 @@ class _BoardCard extends StatelessWidget {
                           color: AppTheme.textPrimary,
                         ),
                       ),
-                      if (board.createdAt != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            _formatDate(board.createdAt!),
-                            style: TextStyle(
-                                fontSize: 10, color: AppTheme.textMuted),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          // Outfi logo watermark
+                          Image.asset(
+                            AppTheme.logoPath,
+                            height: 12,
+                            fit: BoxFit.contain,
                           ),
-                        ),
+                          const Spacer(),
+                          if (board.createdAt != null)
+                            Text(
+                              _formatDate(board.createdAt!),
+                              style: TextStyle(
+                                  fontSize: 10, color: AppTheme.textMuted),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

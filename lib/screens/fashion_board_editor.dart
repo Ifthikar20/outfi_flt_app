@@ -12,6 +12,7 @@ import '../services/api_client.dart';
 import '../services/deal_service.dart';
 import '../services/background_removal_service.dart';
 import '../models/storyboard.dart';
+import '../services/storyboard_service.dart';
 import '../theme/app_theme.dart';
 
 class FashionBoardEditor extends StatefulWidget {
@@ -37,16 +38,21 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
   int _selectedItemIndex = -1;
   int _bottomTab = 0;
   bool _removingBg = false;
+  bool _saving = false;
+  String? _savedToken; // token of existing/saved board
+  DateTime? _lastBgRemoveTime; // 15s cooldown (matches web app)
 
   // Search state
   List<Deal> _searchResults = [];
   bool _searching = false;
+  String? _searchError;
 
   @override
   void initState() {
     super.initState();
     if (widget.existingBoard != null) {
       _loadExisting(widget.existingBoard!);
+      _savedToken = widget.existingBoard!.token;
     }
   }
 
@@ -115,15 +121,17 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
   }
 
   Future<void> _doSearch(String query) async {
-    if (query.trim().isEmpty) return;
+    final q = query.trim();
+    if (q.isEmpty) return;
     setState(() {
       _searching = true;
+      _searchError = null;
       _searchResults = []; // clear old results, shimmer will show
     });
 
     // Phase 1: instant cache check (~50ms)
     try {
-      final instant = await _dealService.instantSearch(query);
+      final instant = await _dealService.instantSearch(q);
       if (mounted && instant != null) {
         setState(() {
           _searchResults = instant.deals
@@ -136,18 +144,27 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
 
     // Phase 2: full marketplace search (3-5s)
     try {
-      final result = await _dealService.search(query: query, limit: 40);
+      final result = await _dealService.search(query: q, limit: 40);
       if (mounted) {
+        final filtered = result.deals
+            .where((d) => d.image != null && d.image!.isNotEmpty)
+            .where(_isFashionProduct)
+            .toList();
         setState(() {
-          _searchResults = result.deals
-              .where((d) => d.image != null && d.image!.isNotEmpty)
-              .where(_isFashionProduct)
-              .toList();
+          _searchResults = filtered;
           _searching = false;
+          if (filtered.isEmpty) _searchError = 'No fashion items found for "$q"';
         });
       }
-    } catch (_) {
-      if (mounted) setState(() => _searching = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _searching = false;
+          if (_searchResults.isEmpty) {
+            _searchError = 'Search failed — check your connection';
+          }
+        });
+      }
     }
   }
 
@@ -413,7 +430,28 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     // If already processed, skip
     if (item.metadata?['bgRemoved'] == true) return;
 
-    setState(() => _removingBg = true);
+    // 15-second cooldown between calls (matches web app)
+    if (_lastBgRemoveTime != null) {
+      final elapsed = DateTime.now().difference(_lastBgRemoveTime!);
+      if (elapsed.inSeconds < 15) {
+        final remaining = 15 - elapsed.inSeconds;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Please wait ${remaining}s before removing another background'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+        return;
+      }
+    }
+    _lastBgRemoveTime = DateTime.now();
+
+    // Mark as processing (shows shimmer)
+    setState(() {
+      _removingBg = true;
+      item.metadata ??= {};
+      item.metadata!['bgProcessing'] = true;
+    });
 
     try {
       // Download the image
@@ -431,8 +469,21 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
       }
     } catch (e) {
       debugPrint('BG removal error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Background removal failed — try again'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     } finally {
-      if (mounted) setState(() => _removingBg = false);
+      if (mounted) {
+        setState(() {
+          _removingBg = false;
+          item.metadata?.remove('bgProcessing');
+        });
+      }
     }
   }
 
@@ -453,7 +504,59 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     }
   }
 
+  Future<void> _saveBoard() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+
+    final boardData = {
+      'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
+      if (_bgPattern != null) 'pattern': _bgPattern,
+      'items': _items.map((i) => i.toJson()).toList(),
+    };
+
+    try {
+      final service = StoryboardService(_apiClient);
+      if (_savedToken != null && _savedToken!.isNotEmpty) {
+        // Update existing
+        await service.updateStoryboard(
+          token: _savedToken!,
+          title: _titleCtrl.text,
+          storyboardData: boardData,
+        );
+      } else {
+        // Create new
+        final created = await service.createStoryboard(
+          title: _titleCtrl.text,
+          storyboardData: boardData,
+        );
+        _savedToken = created.token;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Board saved ✓'),
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Save failed: $e'),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   void _done() async {
+    // Auto-save before sharing
+    if (!_saving) await _saveBoard();
+
     final imageBytes = await _captureCanvas();
     if (!mounted) return;
 
@@ -476,7 +579,7 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.bgMain,
-      resizeToAvoidBottomInset: false,
+      resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Column(
           children: [
@@ -575,6 +678,38 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
             ),
           ],
           const SizedBox(width: 8),
+          // Save button
+          GestureDetector(
+            onTap: _saving ? null : _saveBoard,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppTheme.bgCard,
+                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                border: Border.all(color: AppTheme.border, width: 0.5),
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.accent))
+                  : const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.cloud_upload_outlined,
+                            size: 16, color: AppTheme.accent),
+                        SizedBox(width: 4),
+                        Text('Save',
+                            style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.accent)),
+                      ],
+                    ),
+            ),
+          ),
+          const SizedBox(width: 6),
           GestureDetector(
             onTap: _done,
             child: Container(
@@ -654,6 +789,20 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
                       });
                     },
                   ),
+
+                // Outfi watermark (captured in share image)
+                Positioned(
+                  bottom: 8,
+                  right: 10,
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: Image.asset(
+                      AppTheme.logoPath,
+                      height: 14,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -720,21 +869,42 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
           child: TextField(
             controller: _searchCtrl,
             onSubmitted: _doSearch,
+            onChanged: (_) => setState(() {}), // refresh suffix icon
             textInputAction: TextInputAction.search,
             style: const TextStyle(fontSize: 14, color: AppTheme.textPrimary),
             decoration: InputDecoration(
               hintText: 'Search fashion items...',
               prefixIcon:
                   const Icon(Icons.search, size: 20, color: AppTheme.textMuted),
-              suffixIcon: _searchCtrl.text.isNotEmpty
-                  ? IconButton(
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_searchCtrl.text.isNotEmpty)
+                    IconButton(
                       icon: const Icon(Icons.close, size: 18),
                       onPressed: () {
                         _searchCtrl.clear();
-                        setState(() => _searchResults = []);
+                        setState(() {
+                          _searchResults = [];
+                          _searchError = null;
+                        });
                       },
-                    )
-                  : null,
+                    ),
+                  // Always-visible search button
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 20,
+                      color: _searchCtrl.text.trim().isNotEmpty
+                          ? AppTheme.accent
+                          : AppTheme.textMuted,
+                    ),
+                    onPressed: _searchCtrl.text.trim().isNotEmpty
+                        ? () => _doSearch(_searchCtrl.text)
+                        : null,
+                  ),
+                ],
+              ),
               filled: true,
               fillColor: AppTheme.bgInput,
               contentPadding: const EdgeInsets.symmetric(vertical: 8),
@@ -753,23 +923,33 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
                   itemCount: 6,
                   itemBuilder: (_, __) => const _SkeletonResultTile(),
                 )
-              : _searchResults.isEmpty
+              : _searchError != null && _searchResults.isEmpty
                   ? Center(
-                      child: Text('Search to find items',
-                          style: TextStyle(
-                              fontSize: 13, color: AppTheme.textMuted)))
-                  : ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      itemCount: _searchResults.length,
-                      itemBuilder: (_, i) {
-                        final deal = _searchResults[i];
-                        return _SearchResultTile(
-                          deal: deal,
-                          onTap: () => _addProductToCanvas(deal),
-                        );
-                      },
-                    ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Text(_searchError!,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                fontSize: 13, color: AppTheme.textMuted)),
+                      ),
+                    )
+                  : _searchResults.isEmpty
+                      ? Center(
+                          child: Text('Search to find items',
+                              style: TextStyle(
+                                  fontSize: 13, color: AppTheme.textMuted)))
+                      : ListView.builder(
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          itemCount: _searchResults.length,
+                          itemBuilder: (_, i) {
+                            final deal = _searchResults[i];
+                            return _SearchResultTile(
+                              deal: deal,
+                              onTap: () => _addProductToCanvas(deal),
+                            );
+                          },
+                        ),
         ),
       ],
     );
@@ -1233,13 +1413,11 @@ class _CanvasItemWidgetState extends State<_CanvasItemWidget> {
     Widget child;
     switch (item.type) {
       case BoardItemType.product:
-        // If bg was removed, render from memory bytes
+        // If bg was removed, render transparent (no clip, no background)
         final bgBytes = item.metadata?['bgRemovedBytes'] as Uint8List?;
+        final isProcessing = item.metadata?['bgProcessing'] == true;
         if (bgBytes != null) {
-          child = ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.memory(bgBytes, fit: BoxFit.contain),
-          );
+          child = Image.memory(bgBytes, fit: BoxFit.contain);
         } else {
           child = ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -1260,6 +1438,17 @@ class _CanvasItemWidgetState extends State<_CanvasItemWidget> {
                 child: const Icon(Icons.image, color: AppTheme.textMuted),
               ),
             ),
+          );
+        }
+        // Shimmer overlay while processing
+        if (isProcessing) {
+          child = Stack(
+            children: [
+              child,
+              Positioned.fill(
+                child: _ShimmerOverlay(),
+              ),
+            ],
           );
         }
         break;
@@ -1677,6 +1866,66 @@ class _ImageStickerChip extends StatelessWidget {
         ),
         padding: const EdgeInsets.all(4),
         child: Image.asset(assetPath, fit: BoxFit.contain),
+      ),
+    );
+  }
+}
+
+// ─── Shimmer Overlay (shown during BG removal) ──
+class _ShimmerOverlay extends StatefulWidget {
+  @override
+  State<_ShimmerOverlay> createState() => _ShimmerOverlayState();
+}
+
+class _ShimmerOverlayState extends State<_ShimmerOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(8),
+          color: Colors.white.withValues(alpha: 0.15 + _ctrl.value * 0.35),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.content_cut_rounded,
+                size: 22,
+                color: AppTheme.accent.withValues(alpha: 0.6 + _ctrl.value * 0.4),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Removing background...',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.accent.withValues(alpha: 0.6 + _ctrl.value * 0.4),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

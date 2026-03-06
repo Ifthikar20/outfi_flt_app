@@ -38,15 +38,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Skip button
-            Align(
-              alignment: Alignment.topRight,
-              child: TextButton(
-                onPressed: () => context.go('/login'),
-                child: const Text(
-                  'Skip',
-                  style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
-                ),
+            // Top row — logo + skip
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 4, 0),
+              child: Row(
+                children: [
+                  Image.asset(
+                    AppTheme.logoPath,
+                    height: 28,
+                    fit: BoxFit.contain,
+                  ),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => context.go('/login'),
+                    child: const Text(
+                      'Skip',
+                      style: TextStyle(color: AppTheme.textMuted, fontSize: 14),
+                    ),
+                  ),
+                ],
               ),
             ),
 
@@ -73,7 +83,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           child: Icon(
                             page.icon,
                             size: 56,
-                            color: AppTheme.primary,
+                            color: AppTheme.accent,
                           ),
                         ),
                         const SizedBox(height: 48),
@@ -116,7 +126,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         width: isActive ? 24 : 6,
                         decoration: BoxDecoration(
                           color: isActive
-                              ? AppTheme.primary
+                              ? AppTheme.accent
                               : AppTheme.textMuted.withValues(alpha: 0.3),
                           borderRadius: BorderRadius.circular(3),
                         ),
@@ -138,6 +148,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           context.go('/login');
                         }
                       },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                        ),
+                      ),
                       child: Text(
                         _currentPage < 2 ? 'Next' : 'Get Started',
                       ),

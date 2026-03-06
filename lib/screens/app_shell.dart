@@ -2,30 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
-class AppShell extends StatefulWidget {
-  final Widget child;
+class AppShell extends StatelessWidget {
+  final StatefulNavigationShell navigationShell;
 
-  const AppShell({super.key, required this.child});
-
-  @override
-  State<AppShell> createState() => _AppShellState();
-}
-
-class _AppShellState extends State<AppShell> {
-  int _index = 0;
-
-  static const _routes = ['/', '/favorites', '/boards', '/profile'];
+  const AppShell({super.key, required this.navigationShell});
 
   void _onTap(int i) {
-    if (i == _index) return;
-    setState(() => _index = i);
-    context.go(_routes[i]);
+    // goBranch keeps pages alive — only switches the visible branch
+    navigationShell.goBranch(i, initialLocation: i == navigationShell.currentIndex);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: widget.child,
+      body: navigationShell,
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(
           color: AppTheme.bgMain,
@@ -43,14 +33,14 @@ class _AppShellState extends State<AppShell> {
                   icon: Icons.explore_outlined,
                   activeIcon: Icons.explore,
                   label: 'HOME',
-                  active: _index == 0,
+                  active: navigationShell.currentIndex == 0,
                   onTap: () => _onTap(0),
                 ),
                 _NavItem(
                   icon: Icons.bookmark_border,
                   activeIcon: Icons.bookmark,
                   label: 'SAVED',
-                  active: _index == 1,
+                  active: navigationShell.currentIndex == 1,
                   onTap: () => _onTap(1),
                 ),
 
@@ -58,16 +48,24 @@ class _AppShellState extends State<AppShell> {
                 GestureDetector(
                   onTap: () => context.push('/camera'),
                   child: Container(
-                    width: 46,
-                    height: 46,
+                    width: 48,
+                    height: 48,
                     decoration: BoxDecoration(
-                      color: AppTheme.primary,
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Color(0xFFD4B87A),  // Light gold
+                          Color(0xFFC9A96E),  // Gold accent
+                          Color(0xFFB8944F),  // Dark gold
+                        ],
+                      ),
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppTheme.primary.withValues(alpha: 0.2),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
+                          color: AppTheme.accent.withValues(alpha: 0.3),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
@@ -80,7 +78,7 @@ class _AppShellState extends State<AppShell> {
                   icon: Icons.dashboard_outlined,
                   activeIcon: Icons.dashboard_rounded,
                   label: 'BOARDS',
-                  active: _index == 2,
+                  active: navigationShell.currentIndex == 2,
                   onTap: () => _onTap(2),
                 ),
 
@@ -88,7 +86,7 @@ class _AppShellState extends State<AppShell> {
                   icon: Icons.person_outline,
                   activeIcon: Icons.person,
                   label: 'YOU',
-                  active: _index == 3,
+                  active: navigationShell.currentIndex == 3,
                   onTap: () => _onTap(3),
                 ),
               ],

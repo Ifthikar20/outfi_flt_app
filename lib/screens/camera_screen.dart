@@ -94,7 +94,7 @@ class _CameraScreenState extends State<CameraScreen>
         setState(() {
           _hasError = true;
           _errorMessage = e.toString().contains('permission')
-              ? 'Camera permission denied.\nGo to Settings > Fynda to enable.'
+              ? 'Camera permission denied.\nGo to Settings > Outfi to enable.'
               : 'Could not initialize camera.';
         });
       }
@@ -230,7 +230,7 @@ class _CameraScreenState extends State<CameraScreen>
                   ),
                   // Title
                   const Text(
-                    'Fynda Lens',
+                    'Outfi Lens',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 17,

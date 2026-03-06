@@ -8,7 +8,11 @@ class StoryboardService {
 
   Future<List<Storyboard>> getStoryboards() async {
     final response = await _api.get('/storyboard/');
-    final list = response.data as List<dynamic>? ?? [];
+    final data = response.data;
+    // Backend returns { storyboards: [...], count: N }
+    final list = (data is Map && data['storyboards'] != null)
+        ? data['storyboards'] as List<dynamic>
+        : (data is List ? data : []);
     return list
         .map((s) => Storyboard.fromJson(s as Map<String, dynamic>))
         .toList();
@@ -23,6 +27,19 @@ class StoryboardService {
       'title': title,
       'storyboard_data': storyboardData,
       'expires_in_days': expiresInDays,
+    });
+    return Storyboard.fromJson(response.data);
+  }
+
+  /// Update an existing storyboard by token.
+  Future<Storyboard> updateStoryboard({
+    required String token,
+    required String title,
+    required Map<String, dynamic> storyboardData,
+  }) async {
+    final response = await _api.put('/storyboard/$token/', data: {
+      'title': title,
+      'storyboard_data': storyboardData,
     });
     return Storyboard.fromJson(response.data);
   }

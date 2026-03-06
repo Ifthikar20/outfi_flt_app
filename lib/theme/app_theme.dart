@@ -7,15 +7,17 @@ class AppTheme {
   static const Color primaryLight = Color(0xFF3A3A3A);
   static const Color primaryDark = Color(0xFF000000);
 
-  static const Color accent = Color(0xFF1A1A1A);         // Monochrome accent
-  static const Color accentDark = Color(0xFF000000);
+  // Warm gold accent — modest luxury
+  static const Color accent = Color(0xFFC9A96E);
+  static const Color accentDark = Color(0xFFB8944F);
+  static const Color accentLight = Color(0xFFDFC99B);
 
   // ─── Backgrounds ───────────────────────────────
-  static const Color bgMain = Color(0xFFFFFFFF);         // Pure white
-  static const Color bgCard = Color(0xFFF5F5F7);         // Light grey cards
-  static const Color bgCardLight = Color(0xFFEEEEF0);    // Slightly darker grey
-  static const Color bgSurface = Color(0xFFFAFAFC);      // Near-white surface
-  static const Color bgInput = Color(0xFFF0F0F2);        // Input fill
+  static const Color bgMain = Color(0xFFFDFBF7);         // Warm white
+  static const Color bgCard = Color(0xFFF5F3EF);         // Warm light grey cards
+  static const Color bgCardLight = Color(0xFFEEECE8);    // Slightly darker warm grey
+  static const Color bgSurface = Color(0xFFFAF8F4);      // Near-white warm surface
+  static const Color bgInput = Color(0xFFF2F0EC);        // Warm input fill
 
   // ─── Text ──────────────────────────────────────
   static const Color textPrimary = Color(0xFF1A1A1A);    // Near-black
@@ -29,8 +31,8 @@ class AppTheme {
   static const Color info = Color(0xFF007AFF);
 
   // ─── Borders / Dividers ────────────────────────
-  static const Color border = Color(0xFFE5E5E7);
-  static const Color divider = Color(0xFFE5E5E7);
+  static const Color border = Color(0xFFE5E3DF);
+  static const Color divider = Color(0xFFE5E3DF);
 
   // ─── Border Radius ─────────────────────────────
   static const double radiusSm = 8.0;
@@ -38,6 +40,9 @@ class AppTheme {
   static const double radiusLg = 16.0;
   static const double radiusXl = 24.0;
   static const double radiusFull = 100.0;
+
+  // ─── Logo ──────────────────────────────────────
+  static const String logoPath = 'assets/images/outfi_logo.png';
 
   // ─── Legacy aliases (keeps existing code working) ──
   static const Color bgDark = bgMain;
@@ -113,7 +118,7 @@ class AppTheme {
           color: textPrimary,
           letterSpacing: 0.3,
         ),
-        // Uppercase section headers (Alo-style)
+        // Uppercase section headers
         labelSmall: GoogleFonts.outfit(
           fontSize: 11,
           fontWeight: FontWeight.w500,
@@ -135,7 +140,7 @@ class AppTheme {
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: bgMain,
-        selectedItemColor: primary,
+        selectedItemColor: accent,
         unselectedItemColor: textMuted,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
@@ -190,7 +195,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusFull),
-          borderSide: const BorderSide(color: primary, width: 1.5),
+          borderSide: const BorderSide(color: accent, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusFull),

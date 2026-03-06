@@ -68,8 +68,8 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
       await file.writeAsBytes(widget.imageBytes!);
 
       final text = _shareUrl != null
-          ? 'Check out my fashion board! ${_shareUrl}'
-          : 'Check out my fashion board on Fynda!';
+          ? 'Check out my fashion board! $_shareUrl'
+          : 'Check out my fashion board on Outfi!';
 
       await Share.shareXFiles(
         [XFile(file.path)],
@@ -218,6 +218,19 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
                 ),
               ),
             ),
+
+          // Outfi logo below preview
+          const SizedBox(height: 12),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                AppTheme.logoPath,
+                height: 18,
+                fit: BoxFit.contain,
+              ),
+            ],
+          ),
 
           const SizedBox(height: 16),
 

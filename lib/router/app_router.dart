@@ -20,6 +20,12 @@ import '../screens/app_shell.dart';
 import '../models/deal.dart';
 import '../models/storyboard.dart';
 
+// Navigation keys per tab – keeps pages alive when switching tabs
+final _homeNavKey = GlobalKey<NavigatorState>(debugLabel: 'home');
+final _favNavKey = GlobalKey<NavigatorState>(debugLabel: 'favorites');
+final _boardsNavKey = GlobalKey<NavigatorState>(debugLabel: 'boards');
+final _profileNavKey = GlobalKey<NavigatorState>(debugLabel: 'profile');
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
   routes: [
@@ -40,33 +46,54 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const RegisterScreen(),
     ),
 
-    // ─── Main App Shell (with bottom nav) ──────
-    ShellRoute(
-      builder: (context, state, child) => AppShell(child: child),
-      routes: [
-        GoRoute(
-          path: '/',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: HomeScreen(),
-          ),
+    // ─── Main App Shell (with bottom nav) — pages stay alive ──────
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) =>
+          AppShell(navigationShell: navigationShell),
+      branches: [
+        StatefulShellBranch(
+          navigatorKey: _homeNavKey,
+          routes: [
+            GoRoute(
+              path: '/',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: HomeScreen(),
+              ),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/favorites',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: FavoritesScreen(),
-          ),
+        StatefulShellBranch(
+          navigatorKey: _favNavKey,
+          routes: [
+            GoRoute(
+              path: '/favorites',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: FavoritesScreen(),
+              ),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/boards',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: FashionBoardScreen(),
-          ),
+        StatefulShellBranch(
+          navigatorKey: _boardsNavKey,
+          routes: [
+            GoRoute(
+              path: '/boards',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: FashionBoardScreen(),
+              ),
+            ),
+          ],
         ),
-        GoRoute(
-          path: '/profile',
-          pageBuilder: (context, state) => const NoTransitionPage(
-            child: ProfileScreen(),
-          ),
+        StatefulShellBranch(
+          navigatorKey: _profileNavKey,
+          routes: [
+            GoRoute(
+              path: '/profile',
+              pageBuilder: (context, state) => const NoTransitionPage(
+                child: ProfileScreen(),
+              ),
+            ),
+          ],
         ),
       ],
     ),

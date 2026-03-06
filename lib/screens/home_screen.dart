@@ -31,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Fallback prompts shown while API loads
   static const _fallbackPrompts = [
-    'Search for fashion deals...',
+    'Discover modest fashion...',
   ];
 
   @override
@@ -99,10 +99,22 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: Image.asset(
+                  AppTheme.logoPath,
+                  height: 34,
+                  fit: BoxFit.contain,
+                  alignment: Alignment.centerLeft,
+                ),
+              ),
+            ),
+
             // ─── Prompt Search Box ───────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
                 child: GestureDetector(
                   onTap: () {
                     FocusManager.instance.primaryFocus?.unfocus();

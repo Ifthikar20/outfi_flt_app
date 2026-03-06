@@ -41,13 +41,21 @@ class AuthService {
     }
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
-      // Try standard JSON decode first
+      // Always decode from raw bytes with UTF-8 (response.body uses Latin-1)
       try {
-        return jsonDecode(response.body) as Map<String, dynamic>;
+        final decoded = utf8.decode(bytes, allowMalformed: true);
+        final result = jsonDecode(decoded) as Map<String, dynamic>;
+        debugPrint('✅ JSON decoded successfully from UTF-8 bytes');
+        return result;
       } catch (e) {
-        debugPrint('⚠️ jsonDecode failed: $e');
-        debugPrint('⚠️ body length: ${response.body.length}, first char code: ${response.body.isNotEmpty ? response.body.codeUnitAt(0) : -1}');
-        return _extractLoginResponse(bytes);
+        debugPrint('⚠️ UTF-8 jsonDecode failed: $e');
+        // Try Latin-1 body as secondary
+        try {
+          return jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (e2) {
+          debugPrint('⚠️ Latin-1 jsonDecode also failed: $e2');
+          return _extractLoginResponse(bytes);
+        }
       }
     } else {
       debugPrint('❌ Auth error: ${response.body}');

@@ -19,9 +19,9 @@ void main() {
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.dark,
     systemNavigationBarColor: AppTheme.bgCard,
-    systemNavigationBarIconBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.dark,
   ));
 
   // Create shared API client
@@ -58,7 +58,7 @@ class FyndaApp extends StatelessWidget {
           ),
         ],
         child: MaterialApp.router(
-          title: 'Fynda',
+          title: 'Outfi',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.darkTheme,
           routerConfig: appRouter,
