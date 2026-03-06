@@ -23,7 +23,7 @@ class ApiClient {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 30),
       // Use bytes to get raw response data — we decode UTF-8 + JSON manually
       // to avoid Dio's internal decoder issues with gzip + charset
       responseType: ResponseType.bytes,
@@ -135,6 +135,8 @@ class ApiClient {
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
+    // Always send device ID for anonymous board tracking
+    options.headers['X-Device-Id'] = await DeviceInfoService.getDeviceId();
     debugPrint('📤 ${options.method} ${options.path}');
     handler.next(options);
   }

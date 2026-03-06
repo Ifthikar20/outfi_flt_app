@@ -30,17 +30,26 @@ class BoardItem {
     return 'item_${DateTime.now().millisecondsSinceEpoch}_${rand.nextInt(9999)}';
   }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'type': type.name,
-        'content': content,
-        'x': x,
-        'y': y,
-        'width': width,
-        'height': height,
-        'rotation': rotation,
-        'metadata': metadata,
-      };
+  Map<String, dynamic> toJson() {
+    // Strip runtime-only keys from metadata (binary data, processing flags)
+    Map<String, dynamic>? cleanMeta;
+    if (metadata != null) {
+      cleanMeta = Map.from(metadata!)
+        ..remove('bgRemovedBytes')
+        ..remove('bgProcessing');
+    }
+    return {
+      'id': id,
+      'type': type.name,
+      'content': content,
+      'x': x,
+      'y': y,
+      'width': width,
+      'height': height,
+      'rotation': rotation,
+      'metadata': cleanMeta,
+    };
+  }
 
   factory BoardItem.fromJson(Map<String, dynamic> json) => BoardItem(
         id: json['id'],

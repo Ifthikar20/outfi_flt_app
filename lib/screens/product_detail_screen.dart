@@ -167,14 +167,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             ),
                           ),
                         ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
 
-                      // Title
+                      // Title (compact)
                       Text(
                         _deal.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
                           color: AppTheme.textPrimary,
                           height: 1.3,
                         ),
@@ -189,7 +191,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           Text(
                             _deal.formattedPrice,
                             style: const TextStyle(
-                              fontSize: 28,
+                              fontSize: 24,
                               fontWeight: FontWeight.w800,
                               color: AppTheme.textPrimary,
                             ),
@@ -248,16 +250,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ),
                       ],
 
-                      const SizedBox(height: 20),
+                      const SizedBox(height: 14),
 
-                      // ── Price Comparison ─────────
+                      // ── Price Comparison (compact) ─────────
                       _PriceComparisonCard(
                         deal: _deal,
                         comparisonData: _comparisonData,
                         loading: _loadingComparison,
                       ),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 16),
 
                       // ── Action Buttons ──────────
                       // Buy Now — gold gradient
@@ -375,42 +377,26 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ],
                       ),
 
-                      // ── Product Details ─────────
+                      // ── Product Details (compact) ─────────
                       if (_deal.description.isNotEmpty) ...[
-                        const SizedBox(height: 24),
-                        const Text(
-                          'About this product',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 16),
                         Text(
                           _deal.description,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: AppTheme.textSecondary,
-                            height: 1.6,
+                            height: 1.5,
                           ),
                         ),
                       ],
 
                       // Features
                       if (_deal.features.isNotEmpty) ...[
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Features',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        ...(_deal.features.take(6).map((f) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
+                        const SizedBox(height: 12),
+                        ...(_deal.features.take(3).map((f) => Padding(
+                              padding: const EdgeInsets.only(bottom: 4),
                               child: Row(
                                 crossAxisAlignment:
                                     CrossAxisAlignment.start,
@@ -418,14 +404,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                   Text('•  ',
                                       style: TextStyle(
                                           color: AppTheme.accent,
-                                          fontSize: 14)),
+                                          fontSize: 12)),
                                   Expanded(
                                     child: Text(
                                       f,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 13,
+                                        fontSize: 12,
                                         color: AppTheme.textSecondary,
-                                        height: 1.4,
+                                        height: 1.3,
                                       ),
                                     ),
                                   ),
@@ -666,19 +654,19 @@ class _PriceComparisonCard extends StatelessWidget {
     // Show loading skeleton
     if (loading) {
       return Container(
-        height: 80,
-        padding: const EdgeInsets.all(16),
+        height: 50,
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
           color: AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: AppTheme.border, width: 0.5),
         ),
         child: const Center(
           child: SizedBox(
-            width: 20,
-            height: 20,
+            width: 16,
+            height: 16,
             child: CircularProgressIndicator(
-                strokeWidth: 2, color: AppTheme.accent),
+                strokeWidth: 1.5, color: AppTheme.accent),
           ),
         ),
       );
@@ -721,10 +709,10 @@ class _PriceComparisonCard extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       decoration: BoxDecoration(
         color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppTheme.border, width: 0.5),
       ),
       child: Column(
@@ -734,34 +722,32 @@ class _PriceComparisonCard extends StatelessWidget {
             children: [
               Container(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.15),
+                  color: labelColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
                   label,
                   style: TextStyle(
                     color: labelColor,
-                    fontSize: 11,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              Text(
-                sellerCount >= 2
-                    ? 'Price comparison ($sellerCount sellers)'
-                    : 'Price comparison',
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
+              const Spacer(),
+              if (sellerCount >= 2)
+                Text(
+                  '$sellerCount sellers',
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: AppTheme.textMuted,
+                  ),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
 
           // Gradient bar
           Stack(
@@ -821,7 +807,7 @@ class _PriceComparisonCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
 
           // Min / Max labels
           Row(
@@ -829,11 +815,11 @@ class _PriceComparisonCard extends StatelessWidget {
             children: [
               Text(
                 '\$${low.toInt()}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
               ),
               Text(
                 '\$${high.toInt()}',
-                style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
               ),
             ],
           ),
@@ -843,9 +829,8 @@ class _PriceComparisonCard extends StatelessWidget {
   }
 }
 
-// ─── Secondary Button ───────────────────────
-
-class _SecondaryButton extends StatelessWidget {
+// ─── Apple-style Bounce Secondary Button ───────────────
+class _SecondaryButton extends StatefulWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -859,66 +844,147 @@ class _SecondaryButton extends StatelessWidget {
   });
 
   @override
+  State<_SecondaryButton> createState() => _SecondaryButtonState();
+}
+
+class _SecondaryButtonState extends State<_SecondaryButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _scale = Tween(begin: 1.0, end: 0.92).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: highlight ? AppTheme.accent.withValues(alpha: 0.1) : AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: highlight ? AppTheme.accent.withValues(alpha: 0.3) : AppTheme.border,
-            width: 1,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 18, color: highlight ? AppTheme.accent : AppTheme.textPrimary),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: highlight ? AppTheme.accent : AppTheme.textPrimary,
-              ),
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          height: 44,
+          decoration: BoxDecoration(
+            color: widget.highlight
+                ? AppTheme.accent.withValues(alpha: 0.1)
+                : AppTheme.bgCard,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: widget.highlight
+                  ? AppTheme.accent.withValues(alpha: 0.3)
+                  : AppTheme.border,
+              width: 1,
             ),
-          ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(widget.icon,
+                  size: 16,
+                  color: widget.highlight
+                      ? AppTheme.accent
+                      : AppTheme.textPrimary),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: widget.highlight
+                      ? AppTheme.accent
+                      : AppTheme.textPrimary,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-// ─── Circle Button ──────────────────────────
-
-class _CircleButton extends StatelessWidget {
+// ─── Apple-style Bounce Circle Button ──────────────────
+class _CircleButton extends StatefulWidget {
   final IconData icon;
   final VoidCallback onTap;
 
   const _CircleButton({required this.icon, required this.onTap});
 
   @override
+  State<_CircleButton> createState() => _CircleButtonState();
+}
+
+class _CircleButtonState extends State<_CircleButton>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 80),
+      reverseDuration: const Duration(milliseconds: 200),
+    );
+    _scale = Tween(begin: 1.0, end: 0.85).animate(
+      CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppTheme.bgMain.withValues(alpha: 0.9),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+      onTapDown: (_) => _ctrl.forward(),
+      onTapUp: (_) {
+        _ctrl.reverse();
+        widget.onTap();
+      },
+      onTapCancel: () => _ctrl.reverse(),
+      child: ScaleTransition(
+        scale: _scale,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppTheme.bgMain.withValues(alpha: 0.9),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Icon(widget.icon, color: AppTheme.textPrimary, size: 20),
         ),
-        child: Icon(icon, color: AppTheme.textPrimary, size: 22),
       ),
     );
   }

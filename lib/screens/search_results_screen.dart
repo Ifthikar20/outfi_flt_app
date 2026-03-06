@@ -263,40 +263,21 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                   }
 
                   if (state is DealsError) {
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppTheme.bgInput,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(Icons.search_off,
-                                size: 40, color: AppTheme.textMuted),
-                          ),
-                          const SizedBox(height: 20),
-                          const Text(
-                            'Search',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Find exactly what you\'re\nlooking for',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 15,
-                              color: AppTheme.textSecondary,
-                              height: 1.4,
-                            ),
-                          ),
-                        ],
+                    // Auto-retry after 3s
+                    Future.delayed(const Duration(seconds: 3), () {
+                      if (mounted) _search(_searchController.text);
+                    });
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.62,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
                       ),
+                      itemCount: 6,
+                      itemBuilder: (_, __) => const LoadingShimmer(),
                     );
                   }
 

@@ -60,29 +60,25 @@ class _BrandScreenState extends State<BrandScreen> {
           }
 
           if (state is DealsError) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.cloud_off,
-                      size: 48, color: AppTheme.textMuted),
-                  const SizedBox(height: 16),
-                  Text(
-                    'Could not load products',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: () => context.read<DealsBloc>().add(
-                          DealsSearchRequested(
-                            query: widget.brandName,
-                            sources: [widget.brandName],
-                          ),
-                        ),
-                    child: const Text('Retry'),
-                  ),
-                ],
+            // Auto-retry after 3s
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                context.read<DealsBloc>().add(DealsSearchRequested(
+                  query: widget.brandName,
+                  sources: [widget.brandName],
+                ));
+              }
+            });
+            return GridView.builder(
+              padding: const EdgeInsets.all(20),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                childAspectRatio: 0.62,
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
               ),
+              itemCount: 6,
+              itemBuilder: (_, __) => const LoadingShimmer(),
             );
           }
 

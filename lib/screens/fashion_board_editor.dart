@@ -1,11 +1,13 @@
 import 'dart:math';
 import 'dart:ui' as ui;
 import 'dart:typed_data';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
 import '../models/board_item.dart';
 import '../models/deal.dart';
 import '../services/api_client.dart';
@@ -433,8 +435,8 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     // 15-second cooldown between calls (matches web app)
     if (_lastBgRemoveTime != null) {
       final elapsed = DateTime.now().difference(_lastBgRemoveTime!);
-      if (elapsed.inSeconds < 15) {
-        final remaining = 15 - elapsed.inSeconds;
+      if (elapsed.inSeconds < 3) {
+        final remaining = 3 - elapsed.inSeconds;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Please wait ${remaining}s before removing another background'),
@@ -454,18 +456,13 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     });
 
     try {
-      // Download the image
-      final response = await http.get(Uri.parse(item.content));
-      if (response.statusCode == 200) {
-        final resultBytes = await _bgService.removeBackgroundFromBytes(
-            Uint8List.fromList(response.bodyBytes));
-        if (resultBytes != null && mounted) {
-          setState(() {
-            item.metadata ??= {};
-            item.metadata!['bgRemoved'] = true;
-            item.metadata!['bgRemovedBytes'] = resultBytes;
-          });
-        }
+      final resultBytes = await _bgService.removeBackgroundFromUrl(item.content);
+      if (resultBytes != null && mounted) {
+        setState(() {
+          item.metadata ??= {};
+          item.metadata!['bgRemoved'] = true;
+          item.metadata!['bgRemovedBytes'] = resultBytes;
+        });
       }
     } catch (e) {
       debugPrint('BG removal error: $e');
@@ -511,8 +508,20 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     final boardData = {
       'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
       if (_bgPattern != null) 'pattern': _bgPattern,
-      'items': _items.map((i) => i.toJson()).toList(),
+      'items': _items.map((i) {
+        final json = i.toJson();
+        // Double-ensure no binary data leaks into the payload
+        if (json['metadata'] is Map) {
+          (json['metadata'] as Map).remove('bgRemovedBytes');
+          (json['metadata'] as Map).remove('bgProcessing');
+        }
+        return json;
+      }).toList(),
     };
+
+    // Debug: log payload size
+    final payloadStr = boardData.toString();
+    debugPrint('📏 Board save payload: ${payloadStr.length} chars, ${_items.length} items');
 
     try {
       final service = StoryboardService(_apiClient);
@@ -558,21 +567,21 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     if (!_saving) await _saveBoard();
 
     final imageBytes = await _captureCanvas();
-    if (!mounted) return;
+    if (!mounted || imageBytes == null) return;
 
-    final boardData = {
-      'title': _titleCtrl.text,
-      'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
-      if (_bgPattern != null) 'pattern': _bgPattern,
-      'items': _items.map((i) => i.toJson()).toList(),
-    };
+    // Write to temp file for native share
+    final tempDir = await getTemporaryDirectory();
+    final file = File(
+      '${tempDir.path}/outfi_board_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    await file.writeAsBytes(imageBytes);
 
-    context.push('/boards/share', extra: {
-      'boardData': boardData,
-      'title': _titleCtrl.text,
-      'imageBytes': imageBytes,
-      'existingBoard': widget.existingBoard,
-    });
+    // Show native share sheet — works with Instagram, WhatsApp, iMessage, etc.
+    final title = _titleCtrl.text.isEmpty ? 'My Fashion Board' : _titleCtrl.text;
+    await Share.shareXFiles(
+      [XFile(file.path, mimeType: 'image/png')],
+      text: '$title — styled on Outfi ✨',
+    );
   }
 
   @override
@@ -792,13 +801,13 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
 
                 // Outfi watermark (captured in share image)
                 Positioned(
-                  bottom: 8,
-                  right: 10,
+                  bottom: 10,
+                  right: 12,
                   child: Opacity(
-                    opacity: 0.5,
+                    opacity: 0.6,
                     child: Image.asset(
                       AppTheme.logoPath,
-                      height: 14,
+                      height: 28,
                       fit: BoxFit.contain,
                     ),
                   ),

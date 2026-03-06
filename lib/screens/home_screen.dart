@@ -22,6 +22,15 @@ class _HomeScreenState extends State<HomeScreen> {
   final _scrollController = ScrollController();
   int _promptIndex = 0;
   Timer? _promptTimer;
+  int _taglineIndex = 0;
+  Timer? _taglineTimer;
+
+  static const _taglines = [
+    'Discover the latest',
+    'Super hot fashion',
+    'The best deals',
+    'Style. Curated.',
+  ];
 
   // API-driven data (replaces hardcoded demo data)
   List<FeaturedBrand> _brands = [];
@@ -40,6 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
     context.read<DealsBloc>().add(DealsFetchTrending());
     _scrollController.addListener(_onScroll);
     _loadFeaturedContent();
+    _taglineTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      if (mounted) setState(() => _taglineIndex = (_taglineIndex + 1) % _taglines.length);
+    });
   }
 
   Future<void> _loadFeaturedContent() async {
@@ -86,6 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.dispose();
     _scrollController.dispose();
     _promptTimer?.cancel();
+    _taglineTimer?.cancel();
     super.dispose();
   }
 
@@ -102,11 +115,40 @@ class _HomeScreenState extends State<HomeScreen> {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                child: Image.asset(
-                  AppTheme.logoPath,
-                  height: 34,
-                  fit: BoxFit.contain,
-                  alignment: Alignment.centerLeft,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Image.asset(
+                      AppTheme.logoPath,
+                      height: 48,
+                      fit: BoxFit.contain,
+                      alignment: Alignment.centerLeft,
+                    ),
+                    const SizedBox(height: 6),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 500),
+                      transitionBuilder: (child, anim) => FadeTransition(
+                        opacity: anim,
+                        child: SlideTransition(
+                          position: Tween<Offset>(
+                            begin: const Offset(0, 0.3),
+                            end: Offset.zero,
+                          ).animate(anim),
+                          child: child,
+                        ),
+                      ),
+                      child: Text(
+                        _taglines[_taglineIndex],
+                        key: ValueKey(_taglineIndex),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppTheme.textSecondary,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -273,25 +315,25 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
 
                 if (state is DealsError) {
-                  return SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(48),
-                        child: Column(
-                          children: [
-                            const Icon(Icons.cloud_off,
-                                size: 48, color: AppTheme.textMuted),
-                            const SizedBox(height: 16),
-                            Text('Could not load deals',
-                                style: Theme.of(context).textTheme.titleMedium),
-                            const SizedBox(height: 12),
-                            TextButton(
-                              onPressed: () =>
-                                  context.read<DealsBloc>().add(DealsFetchTrending()),
-                              child: const Text('Retry'),
-                            ),
-                          ],
-                        ),
+                  // Auto-retry after 3s instead of showing error
+                  Future.delayed(const Duration(seconds: 3), () {
+                    if (mounted) {
+                      context.read<DealsBloc>().add(DealsFetchTrending());
+                    }
+                  });
+                  // Show shimmer cards while retrying
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.62,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (_, __) => const LoadingShimmer(),
+                        childCount: 6,
                       ),
                     ),
                   );

@@ -9,6 +9,7 @@ import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
 import '../models/deal.dart';
 import '../theme/app_theme.dart';
+import '../widgets/loading_shimmer.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -578,27 +579,28 @@ class _CameraScreenState extends State<CameraScreen>
               }
 
               if (state is DealsError) {
-                return SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.all(48),
-                    child: Center(
-                      child: Column(
-                        children: [
-                          const Icon(Icons.error_outline,
-                              size: 40, color: AppTheme.error),
-                          const SizedBox(height: 12),
-                          Text('Could not find matches',
-                              style: Theme.of(context).textTheme.titleSmall),
-                          const SizedBox(height: 16),
-                          TextButton(
-                            onPressed: () => context.read<DealsBloc>().add(
-                                  DealsImageSearchRequested(
-                                      imagePath: _capturedImagePath!),
-                                ),
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
+                // Auto-retry after 3s
+                if (_capturedImagePath != null) {
+                  Future.delayed(const Duration(seconds: 3), () {
+                    if (mounted) {
+                      context.read<DealsBloc>().add(
+                        DealsImageSearchRequested(imagePath: _capturedImagePath!),
+                      );
+                    }
+                  });
+                }
+                return SliverPadding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  sliver: SliverGrid(
+                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.62,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    delegate: SliverChildBuilderDelegate(
+                      (_, __) => const LoadingShimmer(),
+                      childCount: 4,
                     ),
                   ),
                 );

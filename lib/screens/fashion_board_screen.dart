@@ -356,7 +356,7 @@ class _BoardCard extends StatelessWidget {
                           // Outfi logo watermark
                           Image.asset(
                             AppTheme.logoPath,
-                            height: 12,
+                            height: 20,
                             fit: BoxFit.contain,
                           ),
                           const Spacer(),
