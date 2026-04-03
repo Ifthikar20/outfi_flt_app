@@ -156,9 +156,9 @@ class _CameraScreenState extends State<CameraScreen>
       final picker = ImagePicker();
       final photo = await picker.pickImage(
         source: ImageSource.gallery,
-        maxWidth: 1200,
-        maxHeight: 1200,
-        imageQuality: 90,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 75,
       );
       if (photo != null && mounted) {
         setState(() => _capturedImagePath = photo.path);
