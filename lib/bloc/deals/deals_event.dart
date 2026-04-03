@@ -34,11 +34,17 @@ class DealsLoadMoreRequested extends DealsEvent {
 
 class DealsImageSearchRequested extends DealsEvent {
   final String imagePath;
+  final double? latitude;
+  final double? longitude;
 
-  const DealsImageSearchRequested({required this.imagePath});
+  const DealsImageSearchRequested({
+    required this.imagePath,
+    this.latitude,
+    this.longitude,
+  });
 
   @override
-  List<Object?> get props => [imagePath];
+  List<Object?> get props => [imagePath, latitude, longitude];
 }
 
 // ─── Deals States ────────────────────────────────

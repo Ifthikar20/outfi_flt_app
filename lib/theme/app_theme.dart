@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // ─── Brand Colors ──────────────────────────────
@@ -44,16 +43,18 @@ class AppTheme {
   // ─── Logo ──────────────────────────────────────
   static const String logoPath = 'assets/images/outfi_logo.png';
 
+  // ─── Font ──────────────────────────────────────
+  static const String fontFamily = 'Avenir';
+
   // ─── Legacy aliases (keeps existing code working) ──
   static const Color bgDark = bgMain;
 
   static ThemeData get darkTheme => lightTheme;   // alias for existing refs
 
   static ThemeData get lightTheme {
-    final baseTextTheme = GoogleFonts.outfitTextTheme();
-
     return ThemeData(
       brightness: Brightness.light,
+      fontFamily: fontFamily,
       scaffoldBackgroundColor: bgMain,
       primaryColor: primary,
       colorScheme: const ColorScheme.light(
@@ -66,77 +67,84 @@ class AppTheme {
         onSurface: textPrimary,
         onError: Colors.white,
       ),
-      textTheme: baseTextTheme.apply(
-        bodyColor: textPrimary,
-        displayColor: textPrimary,
-      ).copyWith(
-        headlineLarge: GoogleFonts.outfit(
+      textTheme: const TextTheme(
+        headlineLarge: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 32,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w300,
           color: textPrimary,
           letterSpacing: -0.5,
         ),
-        headlineMedium: GoogleFonts.outfit(
+        headlineMedium: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 24,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w300,
           color: textPrimary,
           letterSpacing: -0.3,
         ),
-        headlineSmall: GoogleFonts.outfit(
+        headlineSmall: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 20,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w400,
           color: textPrimary,
         ),
-        titleLarge: GoogleFonts.outfit(
+        titleLarge: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 18,
-          fontWeight: FontWeight.w600,
-          color: textPrimary,
-        ),
-        titleMedium: GoogleFonts.outfit(
-          fontSize: 16,
           fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        bodyLarge: GoogleFonts.outfit(
+        titleMedium: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 16,
           fontWeight: FontWeight.w400,
           color: textPrimary,
         ),
-        bodyMedium: GoogleFonts.outfit(
+        bodyLarge: TextStyle(
+          fontFamily: fontFamily,
+          fontSize: 16,
+          fontWeight: FontWeight.w300,
+          color: textPrimary,
+        ),
+        bodyMedium: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 14,
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w300,
           color: textSecondary,
         ),
-        bodySmall: GoogleFonts.outfit(
+        bodySmall: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 12,
-          fontWeight: FontWeight.w400,
+          fontWeight: FontWeight.w300,
           color: textMuted,
         ),
-        labelLarge: GoogleFonts.outfit(
+        labelLarge: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 14,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
           color: textPrimary,
           letterSpacing: 0.3,
         ),
-        // Uppercase section headers
-        labelSmall: GoogleFonts.outfit(
+        labelSmall: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 11,
-          fontWeight: FontWeight.w500,
+          fontWeight: FontWeight.w400,
           color: textSecondary,
           letterSpacing: 1.2,
         ),
       ),
-      appBarTheme: AppBarTheme(
+      appBarTheme: const AppBarTheme(
         backgroundColor: bgMain,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: true,
-        titleTextStyle: GoogleFonts.outfit(
+        titleTextStyle: TextStyle(
+          fontFamily: fontFamily,
           fontSize: 18,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
           color: textPrimary,
         ),
-        iconTheme: const IconThemeData(color: textPrimary),
+        iconTheme: IconThemeData(color: textPrimary),
       ),
       bottomNavigationBarTheme: const BottomNavigationBarThemeData(
         backgroundColor: bgMain,
@@ -159,11 +167,12 @@ class AppTheme {
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMd),
+            borderRadius: BorderRadius.circular(radiusFull),
           ),
-          textStyle: GoogleFonts.outfit(
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -172,12 +181,13 @@ class AppTheme {
           foregroundColor: textPrimary,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(radiusMd),
+            borderRadius: BorderRadius.circular(radiusFull),
           ),
           side: const BorderSide(color: border),
-          textStyle: GoogleFonts.outfit(
+          textStyle: const TextStyle(
+            fontFamily: fontFamily,
             fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
@@ -195,19 +205,23 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusFull),
-          borderSide: const BorderSide(color: accent, width: 1.5),
+          borderSide: const BorderSide(color: primary, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(radiusFull),
           borderSide: const BorderSide(color: error),
         ),
-        hintStyle: GoogleFonts.outfit(
+        hintStyle: const TextStyle(
+          fontFamily: fontFamily,
           color: textMuted,
           fontSize: 14,
+          fontWeight: FontWeight.w300,
         ),
-        labelStyle: GoogleFonts.outfit(
+        labelStyle: const TextStyle(
+          fontFamily: fontFamily,
           color: textSecondary,
           fontSize: 14,
+          fontWeight: FontWeight.w300,
         ),
       ),
       dividerTheme: const DividerThemeData(
@@ -217,7 +231,10 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: primary,
-        contentTextStyle: GoogleFonts.outfit(color: Colors.white),
+        contentTextStyle: const TextStyle(
+          fontFamily: fontFamily,
+          color: Colors.white,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(radiusMd),
         ),

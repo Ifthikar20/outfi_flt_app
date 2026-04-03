@@ -122,7 +122,11 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
   ) async {
     emit(DealsLoading());
     try {
-      final result = await _dealService.imageSearch(File(event.imagePath));
+      final result = await _dealService.imageSearch(
+        File(event.imagePath),
+        latitude: event.latitude,
+        longitude: event.longitude,
+      );
       emit(DealsLoaded(result));
     } catch (e) {
       emit(DealsError(e.toString()));

@@ -83,12 +83,18 @@ class DealService {
 
   // ─── Image Search (Core Flow) ──────────────────
 
-  Future<SearchResult> imageSearch(File imageFile) async {
+  Future<SearchResult> imageSearch(
+    File imageFile, {
+    double? latitude,
+    double? longitude,
+  }) async {
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(
         imageFile.path,
         filename: 'photo.jpg',
       ),
+      if (latitude != null) 'latitude': latitude.toString(),
+      if (longitude != null) 'longitude': longitude.toString(),
     });
 
     final response = await _api.uploadFile('/deals/image-search/', formData);

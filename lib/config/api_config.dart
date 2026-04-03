@@ -17,12 +17,12 @@ class ApiConfig {
   
   // OAuth
   static const String googleClientId = ''; // Add your Google client ID
-  static const String appleServiceId = 'com.fynda.app';
+  static const String appleServiceId = 'com.outfi.app';
 
   // ── Security ──────────────────────────────────────
-  // Mobile API key — must match FYNDA_MOBILE_API_KEY in backend .env
+  // Mobile API key — must match OUTFI_MOBILE_API_KEY in backend .env
   static const String mobileApiKey =
-      String.fromEnvironment('FYNDA_MOBILE_API_KEY',
+      String.fromEnvironment('OUTFI_MOBILE_API_KEY',
           defaultValue: 'A-wkfUfqEj864To5QA2QsRavy4yphfDsfuhiGiY1h2E');
 
   // SHA-256 fingerprints of your TLS certificate chain (leaf + intermediate).

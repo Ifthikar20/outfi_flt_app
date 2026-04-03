@@ -22,9 +22,9 @@ class AuthService {
         'Content-Type': 'application/json; charset=utf-8',
         'Accept': 'application/json',
         'Accept-Encoding': 'identity', // Prevent gzip — avoids decompression issues
-        'X-Fynda-Mobile-Key': ApiConfig.mobileApiKey,
-        'X-Fynda-Platform': DeviceInfoService.getPlatform(),
-        'X-Fynda-App-Version': ApiConfig.appVersion,
+        'X-Outfi-Mobile-Key': ApiConfig.mobileApiKey,
+        'X-Outfi-Platform': DeviceInfoService.getPlatform(),
+        'X-Outfi-App-Version': ApiConfig.appVersion,
       },
       body: jsonEncode(body),
     );
@@ -218,7 +218,7 @@ class AuthService {
     final response = await _api.post('/auth/oauth/', data: {
       'provider': 'google',
       'code': code,
-      'redirect_uri': 'com.fynda.app:/oauth/callback',
+      'redirect_uri': 'com.outfi.app:/oauth/callback',
       'device_id': deviceId,
       'platform': DeviceInfoService.getPlatform(),
     });

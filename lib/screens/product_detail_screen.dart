@@ -33,10 +33,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<Deal> _similarProducts = [];
   bool _loadingComparison = true;
 
+  // Prevent hero image from rebuilding on setState
+  late final Widget _heroImage;
+
   @override
   void initState() {
     super.initState();
     _deal = widget.deal;
+    // Build hero image once — never rebuild on setState
+    _heroImage = _deal.image != null
+        ? CachedNetworkImage(
+            imageUrl: _deal.image!,
+            fit: BoxFit.cover,
+            memCacheWidth: 800,
+            fadeInDuration: const Duration(milliseconds: 200),
+            fadeOutDuration: const Duration(milliseconds: 200),
+            placeholder: (_, __) => Container(color: AppTheme.bgCard),
+            errorWidget: (_, __, ___) => const Center(
+              child: Icon(Icons.broken_image_outlined,
+                  color: AppTheme.textMuted, size: 48),
+            ),
+          )
+        : const Center(
+            child: Icon(Icons.shopping_bag_outlined,
+                color: AppTheme.textMuted, size: 56),
+          );
     _loadPriceComparison();
   }
 
@@ -95,26 +116,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       color: AppTheme.bgCard,
                       child: AspectRatio(
                         aspectRatio: 0.85,
-                        child: _deal.image != null
-                            ? CachedNetworkImage(
-                                imageUrl: _deal.image!,
-                                fit: BoxFit.cover,
-                                memCacheWidth: 800,
-                                placeholder: (_, __) => const Center(
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: AppTheme.textMuted,
-                                  ),
-                                ),
-                                errorWidget: (_, __, ___) => const Center(
-                                  child: Icon(Icons.broken_image_outlined,
-                                      color: AppTheme.textMuted, size: 48),
-                                ),
-                              )
-                            : const Center(
-                                child: Icon(Icons.shopping_bag_outlined,
-                                    color: AppTheme.textMuted, size: 56),
-                              ),
+                        child: _heroImage,
                       ),
                     ),
 
@@ -162,7 +164,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: AppTheme.accent,
+                              color: AppTheme.textPrimary,
                               letterSpacing: 1.2,
                             ),
                           ),
@@ -210,46 +212,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         ],
                       ),
 
-                      // Rating
-                      if (_deal.rating != null) ...[
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            ...List.generate(5, (i) {
-                              final fill = _deal.rating! - i;
-                              return Icon(
-                                fill >= 1
-                                    ? Icons.star
-                                    : fill > 0
-                                        ? Icons.star_half
-                                        : Icons.star_border,
-                                color: AppTheme.accent,
-                                size: 18,
-                              );
-                            }),
-                            const SizedBox(width: 6),
-                            Text(
-                              _deal.rating!.toStringAsFixed(1),
-                              style: const TextStyle(
-                                fontSize: 13,
-                                color: AppTheme.textSecondary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            if (_deal.reviewsCount != null) ...[
-                              const SizedBox(width: 4),
-                              Text(
-                                '(${_deal.reviewsCount} reviews)',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppTheme.textSecondary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ],
-
                       const SizedBox(height: 14),
 
                       // ── Price Comparison (compact) ─────────
@@ -262,48 +224,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 16),
 
                       // ── Action Buttons ──────────
-                      // Buy Now — gold gradient
                       SizedBox(
                         width: double.infinity,
                         height: 52,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFFD4B87A), Color(0xFFC9A96E), Color(0xFFB8944F)],
+                        child: ElevatedButton(
+                          onPressed: _launchAffiliateUrl,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                             ),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.accent.withValues(alpha: 0.3),
-                                blurRadius: 12,
-                                offset: const Offset(0, 4),
+                          ),
+                          child: const Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.shopping_bag_outlined, size: 20),
+                              SizedBox(width: 8),
+                              Text(
+                                'Buy Now',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ],
-                          ),
-                          child: ElevatedButton(
-                            onPressed: _launchAffiliateUrl,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14),
-                              ),
-                            ),
-                            child: const Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.shopping_bag_outlined, size: 20),
-                                SizedBox(width: 8),
-                                Text(
-                                  'Buy Now',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
                           ),
                         ),
                       ),
@@ -339,12 +285,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               icon: Icons.dashboard_customize_outlined,
                               label: 'Add to Board',
                               onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Added to Board'),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
+                                context.push('/boards/editor', extra: {
+                                  'addDeal': _deal,
+                                });
                               },
                             ),
                           ),
@@ -403,7 +346,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                                 children: [
                                   Text('•  ',
                                       style: TextStyle(
-                                          color: AppTheme.accent,
+                                          color: AppTheme.textPrimary,
                                           fontSize: 12)),
                                   Expanded(
                                     child: Text(
@@ -503,90 +446,43 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       SizedBox(
                         height: 190,
-                        child: _loadingComparison
-                            ? ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                itemCount: 4,
-                                itemBuilder: (_, __) => Container(
-                                  width: 130,
-                                  margin: const EdgeInsets.only(right: 12),
-                                  decoration: BoxDecoration(
-                                    color: AppTheme.bgCard,
-                                    borderRadius: BorderRadius.circular(12),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          child: _loadingComparison
+                              ? ListView.builder(
+                                  key: const ValueKey('loading'),
+                                  scrollDirection: Axis.horizontal,
+                                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                                  itemCount: 4,
+                                  itemBuilder: (_, __) => Container(
+                                    width: 130,
+                                    margin: const EdgeInsets.only(right: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.bgCard,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
                                   ),
-                                ),
-                              )
-                            : ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                padding: const EdgeInsets.symmetric(horizontal: 20),
-                                itemCount: _similarProducts.length,
-                                itemBuilder: (_, i) {
-                                  final similar = _similarProducts[i];
-                                  return GestureDetector(
-                                    onTap: () {
-                                      Navigator.of(context).push(
-                                        MaterialPageRoute(
-                                          builder: (_) => ProductDetailScreen(deal: similar),
-                                        ),
-                                      );
-                                    },
-                                    child: Container(
-                                      width: 130,
-                                      margin: const EdgeInsets.only(right: 12),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.bgCard,
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(color: AppTheme.border, width: 0.5),
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          ClipRRect(
-                                            borderRadius: const BorderRadius.vertical(
-                                                top: Radius.circular(12)),
-                                            child: CachedNetworkImage(
-                                              imageUrl: similar.image!,
-                                              height: 120,
-                                              width: 130,
-                                              fit: BoxFit.cover,
-                                              memCacheWidth: 260,
+                                )
+                              : _similarProducts.isEmpty
+                                  ? const SizedBox.shrink(key: ValueKey('empty'))
+                                  : ListView.builder(
+                                      key: const ValueKey('loaded'),
+                                      scrollDirection: Axis.horizontal,
+                                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                                      itemCount: _similarProducts.length,
+                                      itemBuilder: (_, i) => _SimilarProductCard(
+                                        deal: _similarProducts[i],
+                                        onTap: () {
+                                          Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => ProductDetailScreen(
+                                                  deal: _similarProducts[i]),
                                             ),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.all(8),
-                                            child: Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  similar.title,
-                                                  maxLines: 2,
-                                                  overflow: TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontSize: 11,
-                                                    fontWeight: FontWeight.w500,
-                                                    color: AppTheme.textPrimary,
-                                                    height: 1.3,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  similar.formattedPrice,
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    fontWeight: FontWeight.w700,
-                                                    color: AppTheme.accent,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
+                                          );
+                                        },
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
+                        ),
                       ),
                       const SizedBox(height: 40),
                     ],
@@ -886,12 +782,12 @@ class _SecondaryButtonState extends State<_SecondaryButton>
           height: 44,
           decoration: BoxDecoration(
             color: widget.highlight
-                ? AppTheme.accent.withValues(alpha: 0.1)
+                ? AppTheme.primary.withValues(alpha: 0.06)
                 : AppTheme.bgCard,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: widget.highlight
-                  ? AppTheme.accent.withValues(alpha: 0.3)
+                  ? AppTheme.primary.withValues(alpha: 0.15)
                   : AppTheme.border,
               width: 1,
             ),
@@ -1021,6 +917,91 @@ class _InfoChip extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Similar Product Card ──────────────────────
+class _SimilarProductCard extends StatelessWidget {
+  final Deal deal;
+  final VoidCallback onTap;
+
+  const _SimilarProductCard({required this.deal, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 130,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.bgCard,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border, width: 0.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+              child: deal.image != null
+                  ? CachedNetworkImage(
+                      imageUrl: deal.image!,
+                      height: 120,
+                      width: 130,
+                      fit: BoxFit.cover,
+                      memCacheWidth: 260,
+                      placeholder: (_, __) => Container(
+                        height: 120,
+                        color: AppTheme.bgCard,
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        height: 120,
+                        color: AppTheme.bgCard,
+                        child: const Icon(Icons.image_outlined,
+                            color: AppTheme.textMuted, size: 24),
+                      ),
+                    )
+                  : Container(
+                      height: 120,
+                      color: AppTheme.bgCard,
+                      child: const Icon(Icons.image_outlined,
+                          color: AppTheme.textMuted, size: 24),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    deal.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: AppTheme.textPrimary,
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    deal.formattedPrice,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+import 'package:dio/dio.dart';
 import '../models/storyboard.dart';
 import 'api_client.dart';
 
@@ -51,5 +53,18 @@ class StoryboardService {
 
   Future<void> deleteStoryboard(String token) async {
     await _api.delete('/storyboard/$token/');
+  }
+
+  /// Upload an image to S3 via the backend.
+  /// Returns the URL of the uploaded image.
+  Future<String> uploadImage(Uint8List imageBytes, {String filename = 'board_image.jpg'}) async {
+    final formData = FormData.fromMap({
+      'image': MultipartFile.fromBytes(
+        imageBytes,
+        filename: filename,
+      ),
+    });
+    final response = await _api.uploadFile('/storyboard/upload-image/', formData);
+    return response.data['url'] as String;
   }
 }

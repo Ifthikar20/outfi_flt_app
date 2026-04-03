@@ -27,13 +27,13 @@ void main() {
   // Create shared API client
   final apiClient = ApiClient();
 
-  runApp(FyndaApp(apiClient: apiClient));
+  runApp(OutfiApp(apiClient: apiClient));
 }
 
-class FyndaApp extends StatelessWidget {
+class OutfiApp extends StatelessWidget {
   final ApiClient apiClient;
 
-  const FyndaApp({super.key, required this.apiClient});
+  const OutfiApp({super.key, required this.apiClient});
 
   @override
   Widget build(BuildContext context) {

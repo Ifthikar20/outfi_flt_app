@@ -9,8 +9,15 @@ import '../widgets/quota_warning_banner.dart';
 
 class ImageResultsScreen extends StatefulWidget {
   final String imagePath;
+  final double? latitude;
+  final double? longitude;
 
-  const ImageResultsScreen({super.key, required this.imagePath});
+  const ImageResultsScreen({
+    super.key,
+    required this.imagePath,
+    this.latitude,
+    this.longitude,
+  });
 
   @override
   State<ImageResultsScreen> createState() => _ImageResultsScreenState();
@@ -21,7 +28,11 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
   void initState() {
     super.initState();
     context.read<DealsBloc>().add(
-      DealsImageSearchRequested(imagePath: widget.imagePath),
+      DealsImageSearchRequested(
+        imagePath: widget.imagePath,
+        latitude: widget.latitude,
+        longitude: widget.longitude,
+      ),
     );
   }
 
@@ -77,7 +88,11 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
                   const SizedBox(height: 16),
                   ElevatedButton(
                     onPressed: () => context.read<DealsBloc>().add(
-                      DealsImageSearchRequested(imagePath: widget.imagePath),
+                      DealsImageSearchRequested(
+                        imagePath: widget.imagePath,
+                        latitude: widget.latitude,
+                        longitude: widget.longitude,
+                      ),
                     ),
                     child: const Text('Retry'),
                   ),
@@ -273,6 +288,28 @@ class _ComparisonCard extends StatelessWidget {
                         color: AppTheme.textMuted),
                   ),
 
+                // Condition badge for used/marketplace items
+                if (deal.isFromMarketplace)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade700,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        deal.condition.isNotEmpty ? deal.condition : 'Used',
+                        style: const TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ),
+
                 // Bookmark
                 Positioned(
                   top: 6,
@@ -300,15 +337,30 @@ class _ComparisonCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Brand (uppercase)
-                  Text(
-                    deal.source.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                      letterSpacing: 0.8,
-                    ),
+                  // Brand (uppercase) + distance for marketplace items
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          deal.source.toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textPrimary,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      if (deal.isFromMarketplace && deal.formattedDistance != null)
+                        Text(
+                          deal.formattedDistance!,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textSecondary,
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 2),
 
@@ -350,6 +402,30 @@ class _ComparisonCard extends StatelessWidget {
                       ],
                     ],
                   ),
+
+                  // Location for marketplace items
+                  if (deal.isFromMarketplace && deal.locationName.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.location_on_outlined,
+                              size: 10, color: AppTheme.textMuted),
+                          const SizedBox(width: 2),
+                          Expanded(
+                            child: Text(
+                              deal.locationName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),

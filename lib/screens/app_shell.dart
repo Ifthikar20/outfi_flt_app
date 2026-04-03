@@ -50,27 +50,11 @@ class AppShell extends StatelessWidget {
                   child: Container(
                     width: 48,
                     height: 48,
-                    decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Color(0xFFD4B87A),  // Light gold
-                          Color(0xFFC9A96E),  // Gold accent
-                          Color(0xFFB8944F),  // Dark gold
-                        ],
-                      ),
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.accent.withValues(alpha: 0.3),
-                          blurRadius: 16,
-                          offset: const Offset(0, 6),
-                        ),
-                      ],
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(
+                      'assets/images/camera_icon.png',
+                      fit: BoxFit.contain,
                     ),
-                    child: const Icon(Icons.camera_alt_rounded,
-                        color: Colors.white, size: 20),
                   ),
                 ),
 

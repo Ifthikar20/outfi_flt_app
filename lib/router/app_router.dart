@@ -123,6 +123,8 @@ final GoRouter appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>?;
         return ImageResultsScreen(
           imagePath: extra?['imagePath'] ?? '',
+          latitude: extra?['latitude'] as double?,
+          longitude: extra?['longitude'] as double?,
         );
       },
     ),
@@ -132,6 +134,7 @@ final GoRouter appRouter = GoRouter(
         final extra = state.extra as Map<String, dynamic>?;
         return FashionBoardEditor(
           existingBoard: extra?['storyboard'] as Storyboard?,
+          initialDeal: extra?['addDeal'] as Deal?,
         );
       },
     ),

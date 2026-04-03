@@ -17,6 +17,8 @@ class Deal {
   final String shipping;
   final String condition;
   final List<String> features;
+  final double? distanceMiles;
+  final String locationName;
 
   Deal({
     required this.id,
@@ -37,6 +39,8 @@ class Deal {
     this.shipping = '',
     this.condition = '',
     this.features = const [],
+    this.distanceMiles,
+    this.locationName = '',
   });
 
   factory Deal.fromJson(Map<String, dynamic> json) {
@@ -71,6 +75,8 @@ class Deal {
               ?.map((f) => f.toString())
               .toList() ??
           [],
+      distanceMiles: _parseDouble(json['distance_miles']),
+      locationName: json['location_name'] ?? '',
     );
   }
 
@@ -94,6 +100,8 @@ class Deal {
       shipping: shipping,
       condition: condition,
       features: features,
+      distanceMiles: distanceMiles,
+      locationName: locationName,
     );
   }
 
@@ -136,6 +144,15 @@ class Deal {
   }
 
   String get formattedDiscount => '$discountPercent% OFF';
+
+  bool get isFromMarketplace => source == 'Facebook Marketplace';
+
+  String? get formattedDistance {
+    if (distanceMiles == null) return null;
+    if (distanceMiles! < 0.1) return 'Nearby';
+    if (distanceMiles! < 1) return '${(distanceMiles! * 10).round() / 10} mi away';
+    return '${distanceMiles!.round()} mi away';
+  }
 
   /// Generates a trending reason tag based on deal attributes.
   String get trendingTag {

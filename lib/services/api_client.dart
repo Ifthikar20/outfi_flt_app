@@ -31,9 +31,9 @@ class ApiClient {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
         // ── Security headers for APIGuardMiddleware ──
-        'X-Fynda-Mobile-Key': ApiConfig.mobileApiKey,
-        'X-Fynda-Platform': DeviceInfoService.getPlatform(),
-        'X-Fynda-App-Version': ApiConfig.appVersion,
+        'X-Outfi-Mobile-Key': ApiConfig.mobileApiKey,
+        'X-Outfi-Platform': DeviceInfoService.getPlatform(),
+        'X-Outfi-App-Version': ApiConfig.appVersion,
       },
     ));
 
@@ -209,8 +209,8 @@ class ApiClient {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'X-Fynda-Mobile-Key': ApiConfig.mobileApiKey,
-          'X-Fynda-Platform': DeviceInfoService.getPlatform(),
+          'X-Outfi-Mobile-Key': ApiConfig.mobileApiKey,
+          'X-Outfi-Platform': DeviceInfoService.getPlatform(),
         },
       ));
 

@@ -6,6 +6,7 @@ import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
 import '../models/featured_content.dart';
 import '../services/featured_service.dart';
+import '../services/location_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/deal_card.dart';
 import '../widgets/loading_shimmer.dart';
@@ -32,6 +33,10 @@ class _HomeScreenState extends State<HomeScreen> {
     'Style. Curated.',
   ];
 
+  // Location
+  final _locationService = LocationService();
+  LocationInfo? _location;
+
   // API-driven data (replaces hardcoded demo data)
   List<FeaturedBrand> _brands = [];
   List<String> _searchPrompts = [];
@@ -48,9 +53,160 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     context.read<DealsBloc>().add(DealsFetchTrending());
     _scrollController.addListener(_onScroll);
+    _loadLocation();
     _loadFeaturedContent();
     _taglineTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) setState(() => _taglineIndex = (_taglineIndex + 1) % _taglines.length);
+    });
+  }
+
+  Future<void> _loadLocation() async {
+    final loc = await _locationService.getCurrentLocation();
+    if (mounted && loc != null) {
+      setState(() => _location = loc);
+    }
+  }
+
+  void _showLocationPicker() {
+    final zipController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.bgMain,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          left: 20, right: 20, top: 16, bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppTheme.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Set your location',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+            ),
+            const SizedBox(height: 16),
+
+            // Use GPS button
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await _loadLocation();
+                },
+                icon: const Icon(Icons.my_location_rounded, size: 18),
+                label: const Text('Use current location'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.textPrimary,
+                  side: const BorderSide(color: AppTheme.border),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Or enter zip
+            Row(
+              children: [
+                Expanded(child: Divider(color: AppTheme.border)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('or enter zip code', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                ),
+                Expanded(child: Divider(color: AppTheme.border)),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: zipController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      hintText: 'Zip / Postal code',
+                      prefixIcon: const Icon(Icons.pin_drop_outlined, size: 20),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                        borderSide: const BorderSide(color: AppTheme.border),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                        borderSide: const BorderSide(color: AppTheme.border),
+                      ),
+                    ),
+                    onSubmitted: (val) {
+                      if (val.trim().isNotEmpty) {
+                        Navigator.pop(ctx);
+                        _setLocationFromZip(val.trim());
+                      }
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      final val = zipController.text.trim();
+                      if (val.isNotEmpty) {
+                        Navigator.pop(ctx);
+                        _setLocationFromZip(val);
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      ),
+                    ),
+                    child: const Text('Set'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _setLocationFromZip(String zip) {
+    // Show zip as location immediately, geocode in background
+    setState(() {
+      _location = LocationInfo(
+        city: zip,
+        area: '',
+        country: '',
+        latitude: 0,
+        longitude: 0,
+      );
+    });
+    // Try to geocode the zip
+    _locationService.geocodeZip(zip).then((loc) {
+      if (mounted && loc != null) {
+        setState(() => _location = loc);
+      }
     });
   }
 
@@ -112,41 +268,87 @@ class _HomeScreenState extends State<HomeScreen> {
         child: CustomScrollView(
           controller: _scrollController,
           slivers: [
+            // ─── Location + Logo Header ─────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Image.asset(
-                      AppTheme.logoPath,
-                      height: 48,
-                      fit: BoxFit.contain,
-                      alignment: Alignment.centerLeft,
+                    // Location row
+                    GestureDetector(
+                      onTap: _showLocationPicker,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.location_on_outlined,
+                            size: 16,
+                            color: _location != null
+                                ? AppTheme.textPrimary
+                                : AppTheme.textMuted,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 300),
+                              child: Text(
+                                _location?.displayName ?? 'Set your location',
+                                key: ValueKey(_location?.displayName ?? 'none'),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                  color: _location != null
+                                      ? AppTheme.textPrimary
+                                      : AppTheme.textMuted,
+                                  letterSpacing: 0.2,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 18,
+                            color: AppTheme.textMuted,
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 6),
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 500),
-                      transitionBuilder: (child, anim) => FadeTransition(
-                        opacity: anim,
-                        child: SlideTransition(
-                          position: Tween<Offset>(
-                            begin: const Offset(0, 0.3),
-                            end: Offset.zero,
-                          ).animate(anim),
-                          child: child,
+                    const SizedBox(height: 10),
+
+                    // Logo + tagline
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Image.asset(
+                          AppTheme.logoPath,
+                          height: 48,
+                          fit: BoxFit.contain,
+                          alignment: Alignment.centerLeft,
                         ),
-                      ),
-                      child: Text(
-                        _taglines[_taglineIndex],
-                        key: ValueKey(_taglineIndex),
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondary,
-                          fontWeight: FontWeight.w400,
-                          letterSpacing: 0.2,
+                        const Spacer(),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 500),
+                            transitionBuilder: (child, anim) => FadeTransition(
+                              opacity: anim,
+                              child: child,
+                            ),
+                            child: Text(
+                              _taglines[_taglineIndex],
+                              key: ValueKey(_taglineIndex),
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                                fontWeight: FontWeight.w300,
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

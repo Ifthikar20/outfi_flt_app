@@ -46,16 +46,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
       filled: true,
       fillColor: AppTheme.bgInput,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         borderSide: BorderSide(color: AppTheme.border),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
         borderSide: BorderSide(color: AppTheme.border),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-        borderSide: BorderSide(color: AppTheme.accent, width: 1.5),
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        borderSide: BorderSide(color: AppTheme.primary, width: 1.5),
       ),
     );
   }
@@ -72,46 +72,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 28),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
-                IconButton(
-                  onPressed: () => context.go('/login'),
-                  icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: IconButton(
+                    onPressed: () => context.go('/login'),
+                    icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+                  ),
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 24),
 
-                // Outfi logo
+                // Logo — large
                 Center(
                   child: Image.asset(
                     AppTheme.logoPath,
-                    height: 48,
+                    height: 144,
                     fit: BoxFit.contain,
                   ),
                 ),
-                const SizedBox(height: 28),
-
-                Text(
-                  'Create\naccount',
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineLarge
-                      ?.copyWith(
-                        fontSize: 34,
-                        height: 1.1,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
                 const SizedBox(height: 8),
                 Text(
-                  'Join and discover curated modest fashion',
+                  'Join the community',
                   style: TextStyle(
-                    color: AppTheme.textSecondary,
                     fontSize: 14,
-                    height: 1.4,
+                    color: AppTheme.textSecondary,
+                    fontWeight: FontWeight.w400,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const SizedBox(height: 36),
+                const SizedBox(height: 40),
 
                 BlocBuilder<AuthBloc, AuthState>(
                   buildWhen: (prev, curr) => curr is AuthFailure,
@@ -123,7 +113,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: AppTheme.error.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
                             border: Border.all(color: AppTheme.error.withValues(alpha: 0.2)),
                           ),
                           child: Row(
@@ -172,58 +162,38 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Create account button — gold gradient
+                // Create account button — black, rounded
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is AuthLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 54,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: isLoading
-                              ? null
-                              : const LinearGradient(
-                                  colors: [Color(0xFFD4B87A), Color(0xFFC9A96E), Color(0xFFB8944F)],
-                                ),
-                          color: isLoading ? AppTheme.textMuted : null,
-                          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                          boxShadow: isLoading
-                              ? null
-                              : [
-                                  BoxShadow(
-                                    color: AppTheme.accent.withValues(alpha: 0.3),
-                                    blurRadius: 12,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                        ),
-                        child: ElevatedButton(
-                          onPressed: isLoading ? null : _handleRegister,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent,
-                            shadowColor: Colors.transparent,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                            ),
+                      child: ElevatedButton(
+                        onPressed: isLoading ? null : _handleRegister,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: isLoading ? AppTheme.textMuted : AppTheme.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                           ),
-                          child: isLoading
-                              ? const SizedBox(
-                                  width: 22,
-                                  height: 22,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5, color: Colors.white),
-                                )
-                              : const Text(
-                                  'Create Account',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
                         ),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5, color: Colors.white),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.3,
+                                ),
+                              ),
                       ),
                     );
                   },
@@ -241,8 +211,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           TextSpan(
                             text: 'Sign In',
                             style: TextStyle(
-                              color: AppTheme.accent,
-                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ],

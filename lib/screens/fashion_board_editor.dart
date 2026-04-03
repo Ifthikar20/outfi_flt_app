@@ -19,7 +19,8 @@ import '../theme/app_theme.dart';
 
 class FashionBoardEditor extends StatefulWidget {
   final Storyboard? existingBoard;
-  const FashionBoardEditor({super.key, this.existingBoard});
+  final Deal? initialDeal;
+  const FashionBoardEditor({super.key, this.existingBoard, this.initialDeal});
 
   @override
   State<FashionBoardEditor> createState() => _FashionBoardEditorState();
@@ -55,6 +56,12 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     if (widget.existingBoard != null) {
       _loadExisting(widget.existingBoard!);
       _savedToken = widget.existingBoard!.token;
+    }
+    // Auto-add a deal passed from product detail
+    if (widget.initialDeal != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _addProductToCanvas(widget.initialDeal!);
+      });
     }
   }
 
@@ -563,11 +570,20 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
   }
 
   void _done() async {
-    // Auto-save before sharing
-    if (!_saving) await _saveBoard();
-
     final imageBytes = await _captureCanvas();
     if (!mounted || imageBytes == null) return;
+
+    // Upload board snapshot to S3
+    try {
+      final service = StoryboardService(_apiClient);
+      final snapshotUrl = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
+      debugPrint('Board snapshot uploaded: $snapshotUrl');
+    } catch (e) {
+      debugPrint('Snapshot upload failed (non-blocking): $e');
+    }
+
+    // Auto-save board data
+    if (!_saving) await _saveBoard();
 
     // Write to temp file for native share
     final tempDir = await getTemporaryDirectory();

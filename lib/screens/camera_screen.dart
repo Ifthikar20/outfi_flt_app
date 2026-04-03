@@ -9,6 +9,7 @@ import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
 import '../models/deal.dart';
 import '../theme/app_theme.dart';
+import '../services/location_service.dart';
 import '../widgets/loading_shimmer.dart';
 
 class CameraScreen extends StatefulWidget {
@@ -27,12 +28,27 @@ class _CameraScreenState extends State<CameraScreen>
   String? _capturedImagePath;
   bool _isCapturing = false;
   bool _flashOn = false;
+  final _locationService = LocationService();
+  double? _userLat;
+  double? _userLng;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initCamera();
+    _fetchLocation();
+  }
+
+  Future<void> _fetchLocation() async {
+    final loc = _locationService.cachedLocation ??
+        await _locationService.getCurrentLocation();
+    if (loc != null && mounted) {
+      setState(() {
+        _userLat = loc.latitude;
+        _userLng = loc.longitude;
+      });
+    }
   }
 
   @override
@@ -118,7 +134,7 @@ class _CameraScreenState extends State<CameraScreen>
         });
         // Trigger image search
         context.read<DealsBloc>().add(
-              DealsImageSearchRequested(imagePath: file.path),
+              DealsImageSearchRequested(imagePath: file.path, latitude: _userLat, longitude: _userLng),
             );
       }
     } catch (e) {
@@ -147,7 +163,7 @@ class _CameraScreenState extends State<CameraScreen>
       if (photo != null && mounted) {
         setState(() => _capturedImagePath = photo.path);
         context.read<DealsBloc>().add(
-              DealsImageSearchRequested(imagePath: photo.path),
+              DealsImageSearchRequested(imagePath: photo.path, latitude: _userLat, longitude: _userLng),
             );
       }
     } catch (e) {
@@ -584,7 +600,7 @@ class _CameraScreenState extends State<CameraScreen>
                   Future.delayed(const Duration(seconds: 3), () {
                     if (mounted) {
                       context.read<DealsBloc>().add(
-                        DealsImageSearchRequested(imagePath: _capturedImagePath!),
+                        DealsImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
                       );
                     }
                   });
