@@ -16,6 +16,9 @@ import '../screens/fashion_board_share_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/brand_screen.dart';
 import '../screens/product_detail_screen.dart';
+import '../screens/paywall_screen.dart';
+import '../screens/preferences_screen.dart';
+import '../screens/fashion_timeline_screen.dart';
 import '../screens/app_shell.dart';
 import '../models/deal.dart';
 import '../models/storyboard.dart';
@@ -164,6 +167,34 @@ final GoRouter appRouter = GoRouter(
         final deal = state.extra as Deal;
         return ProductDetailScreen(deal: deal);
       },
+    ),
+    GoRoute(
+      path: '/preferences',
+      builder: (context, state) => const PreferencesScreen(),
+    ),
+    GoRoute(
+      path: '/timeline',
+      builder: (context, state) => const FashionTimelineScreen(),
+    ),
+    GoRoute(
+      path: '/premium',
+      pageBuilder: (context, state) => CustomTransitionPage(
+        key: state.pageKey,
+        child: const PaywallScreen(),
+        transitionDuration: const Duration(milliseconds: 300),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 1),
+              end: Offset.zero,
+            ).animate(CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+            )),
+            child: child,
+          );
+        },
+      ),
     ),
   ],
 );

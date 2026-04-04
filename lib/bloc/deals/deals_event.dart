@@ -16,16 +16,18 @@ class DealsSearchRequested extends DealsEvent {
   final String sort;
   final String? gender;
   final List<String>? sources;
+  final int? maxDistance;
 
   const DealsSearchRequested({
     required this.query,
     this.sort = 'relevance',
     this.gender,
     this.sources,
+    this.maxDistance,
   });
 
   @override
-  List<Object?> get props => [query, sort, gender, sources];
+  List<Object?> get props => [query, sort, gender, sources, maxDistance];
 }
 
 class DealsLoadMoreRequested extends DealsEvent {

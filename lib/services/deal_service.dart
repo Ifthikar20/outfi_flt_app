@@ -20,6 +20,7 @@ class DealService {
     int offset = 0,
     String? gender,
     List<String>? sources,
+    int? maxDistance,
   }) async {
     // Retry loop for 429 rate limiting
     for (int attempt = 0; attempt < 3; attempt++) {
@@ -33,6 +34,7 @@ class DealService {
           'offset': offset,
           if (gender != null) 'gender': gender,
           if (sources != null) 'sources': sources,
+          if (maxDistance != null) 'max_distance': maxDistance,
         });
         return SearchResult.fromJson(response.data);
       } on DioException catch (e) {

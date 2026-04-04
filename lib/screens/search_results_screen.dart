@@ -19,6 +19,7 @@ class SearchResultsScreen extends StatefulWidget {
 class _SearchResultsScreenState extends State<SearchResultsScreen> {
   String _sort = 'relevance';
   String? _gender;
+  int? _maxDistance;
   late TextEditingController _searchController;
   late ScrollController _scrollController;
 
@@ -36,6 +37,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
     ('women', 'Women'),
   ];
 
+  static const _distanceOptions = [
+    (null, 'Any Distance'),
+    (10, '10 mi'),
+    (25, '25 mi'),
+    (50, '50 mi'),
+    (100, '100 mi'),
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -51,6 +60,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           query: query,
           sort: _sort,
           gender: _gender,
+          maxDistance: _maxDistance,
         ));
   }
 
@@ -233,6 +243,71 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                                 ? Colors.white
                                 : AppTheme.textSecondary,
                           ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            // ─── Distance Chips (for Marketplace) ───
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+              child: SizedBox(
+                height: 30,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: _distanceOptions.length,
+                  separatorBuilder: (_, __) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final (value, label) = _distanceOptions[i];
+                    final isActive = _maxDistance == value;
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() => _maxDistance = value);
+                        _search(_searchController.text);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? AppTheme.accent
+                              : Colors.transparent,
+                          borderRadius:
+                              BorderRadius.circular(AppTheme.radiusFull),
+                          border: Border.all(
+                            color: isActive
+                                ? AppTheme.accent
+                                : AppTheme.border,
+                            width: 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (i == 0) ...[
+                              Icon(Icons.location_on,
+                                  size: 12,
+                                  color: isActive
+                                      ? Colors.white
+                                      : AppTheme.textMuted),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight:
+                                    isActive ? FontWeight.w600 : FontWeight.w400,
+                                color: isActive
+                                    ? Colors.white
+                                    : AppTheme.textSecondary,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     );

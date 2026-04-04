@@ -51,6 +51,9 @@ dependencies:
   device_info_plus: ^11.2.0
   crypto: ^3.0.6
 
+  # Payments (Apple Pay via Stripe)
+  flutter_stripe: ^11.4.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

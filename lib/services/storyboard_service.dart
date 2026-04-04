@@ -25,10 +25,13 @@ class StoryboardService {
     required Map<String, dynamic> storyboardData,
     int expiresInDays = 30,
   }) async {
+    // Extract snapshot_path from board data if present
+    final snapshotPath = storyboardData.remove('snapshot_path') ?? '';
     final response = await _api.post('/storyboard/', data: {
       'title': title,
       'storyboard_data': storyboardData,
       'expires_in_days': expiresInDays,
+      if (snapshotPath.toString().isNotEmpty) 'snapshot_path': snapshotPath,
     });
     return Storyboard.fromJson(response.data);
   }
@@ -48,6 +51,14 @@ class StoryboardService {
 
   Future<Storyboard> getSharedStoryboard(String token) async {
     final response = await _api.get('/storyboard/$token/');
+    return Storyboard.fromJson(response.data);
+  }
+
+  /// Toggle public/private visibility.
+  Future<Storyboard> togglePublic(String token, bool isPublic) async {
+    final response = await _api.put('/storyboard/$token/', data: {
+      'is_public': isPublic,
+    });
     return Storyboard.fromJson(response.data);
   }
 

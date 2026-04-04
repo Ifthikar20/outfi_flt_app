@@ -33,6 +33,8 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
   bool _saving = false;
   bool _saved = false;
   String? _shareUrl;
+  String? _savedToken;
+  bool _isPublic = true;
   bool _savedToGallery = false;
 
   @override
@@ -53,6 +55,8 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
           _saved = true;
           _saving = false;
           _shareUrl = board.shareUrl;
+          _savedToken = board.token;
+          _isPublic = board.isPublic;
         });
       }
     } catch (e) {
@@ -252,7 +256,7 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
                     style: TextStyle(fontSize: 13, color: AppTheme.textMuted)),
               ],
             ),
-          if (_saved)
+          if (_saved) ...[
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -266,6 +270,60 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
                         fontWeight: FontWeight.w500)),
               ],
             ),
+            const SizedBox(height: 20),
+            // ─── Visibility Toggle ──────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppTheme.bgCard,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: AppTheme.border, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    _isPublic ? Icons.public : Icons.lock_outline,
+                    size: 20,
+                    color: _isPublic ? AppTheme.accent : AppTheme.textMuted,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isPublic ? 'Public' : 'Private',
+                          style: const TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          _isPublic
+                              ? 'Anyone with the link can view'
+                              : 'Only you can see this board',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppTheme.textMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch.adaptive(
+                    value: _isPublic,
+                    activeColor: AppTheme.accent,
+                    onChanged: _savedToken == null
+                        ? null
+                        : (v) async {
+                            setState(() => _isPublic = v);
+                            try {
+                              await _service.togglePublic(_savedToken!, v);
+                            } catch (_) {
+                              if (mounted) setState(() => _isPublic = !v);
+                            }
+                          },
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -573,11 +573,18 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     final imageBytes = await _captureCanvas();
     if (!mounted || imageBytes == null) return;
 
-    // Upload board snapshot to S3
+    // Upload board snapshot to S3 and capture the path
+    String? snapshotPath;
     try {
       final service = StoryboardService(_apiClient);
-      final snapshotUrl = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
-      debugPrint('Board snapshot uploaded: $snapshotUrl');
+      final uploadResult = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
+      debugPrint('Board snapshot uploaded: $uploadResult');
+      // uploadResult is the URL — extract path for permanent storage
+      // URL looks like: https://bucket.s3.region.amazonaws.com/storyboard/abc.jpg
+      final uri = Uri.tryParse(uploadResult);
+      if (uri != null && uri.path.isNotEmpty) {
+        snapshotPath = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+      }
     } catch (e) {
       debugPrint('Snapshot upload failed (non-blocking): $e');
     }
@@ -585,19 +592,32 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     // Auto-save board data
     if (!_saving) await _saveBoard();
 
-    // Write to temp file for native share
-    final tempDir = await getTemporaryDirectory();
-    final file = File(
-      '${tempDir.path}/outfi_board_${DateTime.now().millisecondsSinceEpoch}.png',
-    );
-    await file.writeAsBytes(imageBytes);
+    if (!mounted) return;
 
-    // Show native share sheet — works with Instagram, WhatsApp, iMessage, etc.
+    // Navigate to share screen with image bytes
     final title = _titleCtrl.text.isEmpty ? 'My Fashion Board' : _titleCtrl.text;
-    await Share.shareXFiles(
-      [XFile(file.path, mimeType: 'image/png')],
-      text: '$title — styled on Outfi ✨',
-    );
+    final boardData = {
+      'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
+      if (_bgPattern != null) 'pattern': _bgPattern,
+      if (snapshotPath != null) 'snapshot_path': snapshotPath,
+      'items': _items.map((i) {
+        final json = i.toJson();
+        if (json['metadata'] is Map) {
+          (json['metadata'] as Map).remove('bgRemovedBytes');
+          (json['metadata'] as Map).remove('bgProcessing');
+        }
+        return json;
+      }).toList(),
+    };
+
+    context.push('/boards/share', extra: {
+      'boardData': boardData,
+      'title': title,
+      'imageBytes': imageBytes,
+      'existingBoard': _savedToken != null
+          ? Storyboard(token: _savedToken!, title: title, storyboardData: boardData)
+          : null,
+    });
   }
 
   @override

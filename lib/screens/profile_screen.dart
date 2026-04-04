@@ -53,6 +53,56 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 32),
 
+                  // ─── Premium ─────────────────────────
+                  GestureDetector(
+                    onTap: () => context.push('/premium'),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1A1A1A), Color(0xFF2A2A2A)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accent.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(Icons.workspace_premium,
+                                color: AppTheme.accent, size: 24),
+                          ),
+                          const SizedBox(width: 14),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Outfi Premium',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    )),
+                                SizedBox(height: 2),
+                                Text('Unlimited searches, more alerts, ad-free',
+                                    style: TextStyle(
+                                      color: Color(0xFFAAAAAA),
+                                      fontSize: 13,
+                                    )),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: AppTheme.accent),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
                   // ─── Quick links ──────────────────────
                   _SettingsRow(
                     icon: Icons.bookmark_border,
@@ -63,6 +113,16 @@ class ProfileScreen extends StatelessWidget {
                     icon: Icons.dashboard_outlined,
                     label: 'My Boards',
                     onTap: () => context.go('/boards'),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.calendar_month,
+                    label: 'Fashion Timeline',
+                    onTap: () => context.push('/timeline'),
+                  ),
+                  _SettingsRow(
+                    icon: Icons.tune,
+                    label: 'Style & Location Preferences',
+                    onTap: () => context.push('/preferences'),
                   ),
                   const SizedBox(height: 16),
                   const Divider(),

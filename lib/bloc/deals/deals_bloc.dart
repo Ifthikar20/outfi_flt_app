@@ -15,6 +15,7 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
   String _currentSort = 'relevance';
   String? _currentGender;
   List<String>? _currentSources;
+  int? _currentMaxDistance;
   int _currentOffset = 0;
   int _currentLimit = 20;
 
@@ -51,6 +52,7 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
     _currentSort = event.sort;
     _currentGender = event.gender;
     _currentSources = event.sources;
+    _currentMaxDistance = event.maxDistance;
     _currentOffset = 0;
 
     try {
@@ -59,6 +61,7 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
         sort: event.sort,
         gender: event.gender,
         sources: event.sources,
+        maxDistance: event.maxDistance,
         offset: 0,
         limit: _currentLimit,
       );
@@ -87,6 +90,7 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
         sort: _currentSort,
         gender: _currentGender,
         sources: _currentSources,
+        maxDistance: _currentMaxDistance,
         offset: _currentOffset,
         limit: _currentLimit,
       );
