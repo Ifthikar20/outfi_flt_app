@@ -8,6 +8,11 @@ class StoryboardService {
 
   StoryboardService(this._api);
 
+  /// Clears cached storyboard list so the next GET fetches fresh data.
+  void _invalidateCache() {
+    _api.invalidateCache('/storyboard');
+  }
+
   Future<List<Storyboard>> getStoryboards() async {
     final response = await _api.get('/storyboard/');
     final data = response.data;
@@ -33,6 +38,7 @@ class StoryboardService {
       'expires_in_days': expiresInDays,
       if (snapshotPath.toString().isNotEmpty) 'snapshot_path': snapshotPath,
     });
+    _invalidateCache();
     return Storyboard.fromJson(response.data);
   }
 
@@ -46,6 +52,7 @@ class StoryboardService {
       'title': title,
       'storyboard_data': storyboardData,
     });
+    _invalidateCache();
     return Storyboard.fromJson(response.data);
   }
 
@@ -59,11 +66,13 @@ class StoryboardService {
     final response = await _api.put('/storyboard/$token/', data: {
       'is_public': isPublic,
     });
+    _invalidateCache();
     return Storyboard.fromJson(response.data);
   }
 
   Future<void> deleteStoryboard(String token) async {
     await _api.delete('/storyboard/$token/');
+    _invalidateCache();
   }
 
   /// Upload an image to S3 via the backend.

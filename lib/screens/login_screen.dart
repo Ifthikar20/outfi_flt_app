@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -51,32 +52,79 @@ class _LoginScreenState extends State<LoginScreen> {
       },
       child: Scaffold(
         backgroundColor: AppTheme.bgMain,
-        body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28),
-            child: Column(
-              children: [
-                const SizedBox(height: 72),
+        body: SingleChildScrollView(
+          child: Column(
+            children: [
+              // ─── Top half: Linen texture with blur fade + logo ───
+              SizedBox(
+                height: MediaQuery.of(context).size.height * 0.38,
+                width: double.infinity,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    // Linen texture background
+                    Image.asset(
+                      'assets/images/login_bg.png',
+                      fit: BoxFit.cover,
+                    ),
+                    // Blur overlay on bottom portion
+                    Positioned(
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      height: 120,
+                      child: ClipRect(
+                        child: BackdropFilter(
+                          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  AppTheme.bgMain.withValues(alpha: 0.0),
+                                  AppTheme.bgMain.withValues(alpha: 0.6),
+                                  AppTheme.bgMain,
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Outfi logo centered
+                    Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Image.asset(
+                            AppTheme.logoPath,
+                            height: 100,
+                            fit: BoxFit.contain,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Style. Curated.',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppTheme.textSecondary,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
-                // Logo
-                Center(
-                  child: Image.asset(
-                    AppTheme.logoPath,
-                    height: 160,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Style. Curated.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 48),
+              // ─── Bottom half: Login form ───
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 12),
 
                 // Error
                 BlocBuilder<AuthBloc, AuthState>(
@@ -339,8 +387,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-              ],
-            ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),

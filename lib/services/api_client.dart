@@ -129,41 +129,84 @@ class ApiClient {
 
   // ─── Interceptors ─────────────────────────────
 
+  // Track request timing
+  final _requestTimers = <String, DateTime>{};
+
   Future<void> _onRequest(
       RequestOptions options, RequestInterceptorHandler handler) async {
     final token = await _storage.read(key: _accessTokenKey);
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    // Always send device ID for anonymous board tracking
     options.headers['X-Device-Id'] = await DeviceInfoService.getDeviceId();
-    debugPrint('📤 ${options.method} ${options.path}');
+
+    // ── Detailed request log ──
+    _requestTimers[options.path] = DateTime.now();
+
+    debugPrint('');
+    debugPrint('┌─── REQUEST ──────────────────────────────────');
+    debugPrint('│ ${options.method} ${options.uri}');
+    debugPrint('│ Auth: ${token != null && token.isNotEmpty ? "Bearer ${token.substring(0, token.length.clamp(0, 20))}..." : "NONE (${token?.length ?? 0} chars)"}');
+    debugPrint('│ Host: ${options.uri.host}');
+    if (options.data != null) {
+      final dataStr = options.data.toString();
+      if (dataStr.length > 500) {
+        debugPrint('│ Body: ${dataStr.substring(0, 500)}...(${dataStr.length} chars)');
+      } else {
+        debugPrint('│ Body: $dataStr');
+      }
+    }
+    debugPrint('└──────────────────────────────────────────────');
+
     handler.next(options);
   }
 
-  /// Decode the raw bytes response into a JSON Map/List.
   void _onResponse(
       Response response, ResponseInterceptorHandler handler) {
+    final elapsed = _requestTimers.containsKey(response.requestOptions.path)
+        ? DateTime.now().difference(_requestTimers[response.requestOptions.path]!).inMilliseconds
+        : -1;
+    _requestTimers.remove(response.requestOptions.path);
+
     try {
       response.data = _decodeResponseBytes(response.data);
-      debugPrint('📥 ${response.statusCode} ${response.requestOptions.path} '
-          '(${response.data is Map ? (response.data as Map).length : '?'} keys)');
     } catch (e) {
       debugPrint('❌ Response decode error for ${response.requestOptions.path}: $e');
-      // Log raw byte info for debugging
       if (response.data is List<int>) {
         final bytes = response.data as List<int>;
-        debugPrint('   Raw bytes length: ${bytes.length}');
-        debugPrint('   First 50 bytes: ${bytes.take(50).toList()}');
+        debugPrint('   Raw bytes: ${bytes.length} bytes, first 50: ${bytes.take(50).toList()}');
       }
     }
+
+    // ── Detailed response log ──
+    debugPrint('');
+    debugPrint('┌─── RESPONSE ${response.statusCode} ─── ${elapsed}ms ──────');
+    debugPrint('│ ${response.requestOptions.method} ${response.requestOptions.path}');
+    if (response.data is Map) {
+      final map = response.data as Map;
+      debugPrint('│ Keys: ${map.keys.toList()}');
+      // Show key values (truncated)
+      for (final key in map.keys.take(8)) {
+        final val = map[key].toString();
+        debugPrint('│   $key: ${val.length > 100 ? "${val.substring(0, 100)}..." : val}');
+      }
+      if (map.keys.length > 8) debugPrint('│   ...and ${map.keys.length - 8} more keys');
+    } else if (response.data is List) {
+      debugPrint('│ Array: ${(response.data as List).length} items');
+    } else {
+      debugPrint('│ Data: ${response.data.toString().substring(0, 200.clamp(0, response.data.toString().length))}');
+    }
+    debugPrint('└──────────────────────────────────────────────');
+
     handler.next(response);
   }
 
   Future<void> _onError(
       DioException error, ErrorInterceptorHandler handler) async {
-    debugPrint('❌ Error ${error.response?.statusCode} ${error.requestOptions.path}: '
-        '${error.message}');
+    final elapsed = _requestTimers.containsKey(error.requestOptions.path)
+        ? DateTime.now().difference(_requestTimers[error.requestOptions.path]!).inMilliseconds
+        : -1;
+    _requestTimers.remove(error.requestOptions.path);
 
     // Try to decode error response body
     if (error.response?.data != null) {
@@ -172,14 +215,30 @@ class ApiClient {
       } catch (_) {}
     }
 
+    // ── Detailed error log ──
+    debugPrint('');
+    debugPrint('┌─── ERROR ${error.response?.statusCode ?? "NO_RESPONSE"} ─── ${elapsed}ms ──');
+    debugPrint('│ ${error.requestOptions.method} ${error.requestOptions.uri}');
+    debugPrint('│ Type: ${error.type}');
+    debugPrint('│ Message: ${error.message}');
+    if (error.response?.data != null) {
+      debugPrint('│ Server response: ${error.response!.data}');
+    }
+    if (error.error != null) {
+      debugPrint('│ Inner error: ${error.error}');
+    }
+    debugPrint('└──────────────────────────────────────────────');
+
     // Only attempt refresh for 401 on non-auth endpoints (guard against loop)
     if (error.response?.statusCode == 401 &&
         !error.requestOptions.path.contains('/auth/') &&
         !_isRefreshing) {
+      debugPrint('🔄 Token expired — attempting refresh...');
       _isRefreshing = true;
       try {
         final refreshed = await _refreshToken();
         if (refreshed) {
+          debugPrint('🔄 Token refreshed — retrying request');
           final opts = error.requestOptions;
           final token = await _storage.read(key: _accessTokenKey);
           opts.headers['Authorization'] = 'Bearer $token';
@@ -187,9 +246,11 @@ class ApiClient {
             final response = await _dio.fetch(opts);
             return handler.resolve(response);
           } catch (e) {
+            debugPrint('🔄 Retry failed: $e');
             return handler.next(error);
           }
         } else {
+          debugPrint('🔄 Token refresh failed — clearing tokens');
           await clearTokens();
         }
       } finally {

@@ -163,11 +163,20 @@ class AuthService {
       if (pushToken != null) 'push_token': pushToken,
     });
 
+    debugPrint('🔑 Login response keys: ${data.keys.toList()}');
+    debugPrint('🔑 access_token: ${(data['access_token'] ?? '').toString().length} chars');
+    debugPrint('🔑 refresh_token: ${(data['refresh_token'] ?? '').toString().length} chars');
+
     final authResponse = AuthResponse.fromJson(data);
+
+    debugPrint('🔑 Saving tokens: access=${authResponse.accessToken.length}chars refresh=${authResponse.refreshToken.length}chars');
     await _api.saveTokens(
       accessToken: authResponse.accessToken,
       refreshToken: authResponse.refreshToken,
     );
+    final verified = await _api.hasTokens();
+    debugPrint('🔑 Tokens persisted: $verified');
+
     return authResponse;
   }
 

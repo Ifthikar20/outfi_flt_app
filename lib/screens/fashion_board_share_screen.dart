@@ -40,7 +40,17 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
   @override
   void initState() {
     super.initState();
-    _saveToServer();
+    // If we already have an existing board (came from editor that saved),
+    // use it directly instead of creating a duplicate
+    if (widget.existingBoard != null && widget.existingBoard!.token.isNotEmpty) {
+      _saved = true;
+      _saving = false;
+      _shareUrl = widget.existingBoard!.shareUrl;
+      _savedToken = widget.existingBoard!.token;
+      _isPublic = widget.existingBoard!.isPublic;
+    } else {
+      _saveToServer();
+    }
   }
 
   Future<void> _saveToServer() async {

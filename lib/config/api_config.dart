@@ -1,13 +1,12 @@
 class ApiConfig {
-  // Production:
-  // static const String baseUrl = 'https://api.outfi.ai/api/v1/mobile';
-  // static const String webBaseUrl = 'https://outfi.ai';
-  // static const String apiHost = 'api.outfi.ai';
+  static const String baseUrl = 'https://api.outfi.ai/api/v1/mobile';
+  static const String webBaseUrl = 'https://outfi.ai';
+  static const String apiHost = 'api.outfi.ai';
 
   // Local development:
-  static const String baseUrl = 'http://localhost:8000/api/v1/mobile';
-  static const String webBaseUrl = 'http://localhost:8000';
-  static const String apiHost = 'localhost';
+  // static const String baseUrl = 'http://192.168.1.66:8000/api/v1/mobile';
+  // static const String webBaseUrl = 'http://192.168.1.66:8000';
+  // static const String apiHost = '192.168.1.66';
   
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);

@@ -508,13 +508,22 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     }
   }
 
+  /// Get the actual canvas content size (excluding margin).
+  Size _getCanvasSize() {
+    final renderBox = _canvasKey.currentContext?.findRenderObject() as RenderBox?;
+    return renderBox?.size ?? const Size(358, 500);
+  }
+
   Future<void> _saveBoard() async {
     if (_saving) return;
     setState(() => _saving = true);
 
+    final canvasSize = _getCanvasSize();
     final boardData = {
       'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
       if (_bgPattern != null) 'pattern': _bgPattern,
+      'canvasWidth': canvasSize.width,
+      'canvasHeight': canvasSize.height,
       'items': _items.map((i) {
         final json = i.toJson();
         // Double-ensure no binary data leaks into the payload
@@ -573,14 +582,12 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     final imageBytes = await _captureCanvas();
     if (!mounted || imageBytes == null) return;
 
-    // Upload board snapshot to S3 and capture the path
+    // Upload board snapshot to S3
     String? snapshotPath;
     try {
       final service = StoryboardService(_apiClient);
       final uploadResult = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
       debugPrint('Board snapshot uploaded: $uploadResult');
-      // uploadResult is the URL — extract path for permanent storage
-      // URL looks like: https://bucket.s3.region.amazonaws.com/storyboard/abc.jpg
       final uri = Uri.tryParse(uploadResult);
       if (uri != null && uri.path.isNotEmpty) {
         snapshotPath = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
@@ -589,35 +596,18 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
       debugPrint('Snapshot upload failed (non-blocking): $e');
     }
 
-    // Auto-save board data
+    // Save board data to server
     if (!_saving) await _saveBoard();
 
     if (!mounted) return;
 
-    // Navigate to share screen with image bytes
-    final title = _titleCtrl.text.isEmpty ? 'My Fashion Board' : _titleCtrl.text;
-    final boardData = {
-      'background': '#${_bgColor.value.toRadixString(16).padLeft(8, '0').substring(2)}',
-      if (_bgPattern != null) 'pattern': _bgPattern,
-      if (snapshotPath != null) 'snapshot_path': snapshotPath,
-      'items': _items.map((i) {
-        final json = i.toJson();
-        if (json['metadata'] is Map) {
-          (json['metadata'] as Map).remove('bgRemovedBytes');
-          (json['metadata'] as Map).remove('bgProcessing');
-        }
-        return json;
-      }).toList(),
-    };
+    // Show success + go back to boards list (which will refresh)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Board saved ✓'), duration: Duration(seconds: 2)),
+    );
 
-    context.push('/boards/share', extra: {
-      'boardData': boardData,
-      'title': title,
-      'imageBytes': imageBytes,
-      'existingBoard': _savedToken != null
-          ? Storyboard(token: _savedToken!, title: title, storyboardData: boardData)
-          : null,
-    });
+    // Pop back — the boards list calls _load() on return from editor
+    Navigator.of(context).pop();
   }
 
   @override

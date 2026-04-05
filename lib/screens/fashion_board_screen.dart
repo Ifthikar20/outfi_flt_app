@@ -62,6 +62,14 @@ class _FashionBoardScreenState extends State<FashionBoardScreen>
     _load();
   }
 
+  void _shareBoard(Storyboard board) {
+    context.push('/boards/share', extra: {
+      'boardData': board.storyboardData,
+      'title': board.title,
+      'existingBoard': board,
+    });
+  }
+
   Future<void> _deleteBoard(Storyboard board) async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -91,15 +99,21 @@ class _FashionBoardScreenState extends State<FashionBoardScreen>
     );
 
     if (confirmed == true && mounted) {
+      // Optimistic removal — update UI immediately
+      setState(() => _boards?.removeWhere((b) => b.token == board.token));
+
       try {
         await _service.deleteStoryboard(board.token);
-        setState(() => _boards?.remove(board));
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Board deleted')),
           );
         }
+        // Refresh from server to ensure consistency
+        _load();
       } catch (_) {
+        // Restore on failure
+        _load();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Failed to delete board')),
@@ -177,6 +191,7 @@ class _FashionBoardScreenState extends State<FashionBoardScreen>
                               board: _boards![i],
                               onTap: () => _openBoard(_boards![i]),
                               onDelete: () => _deleteBoard(_boards![i]),
+                              onShare: () => _shareBoard(_boards![i]),
                             ),
                           ),
                         ),
@@ -292,11 +307,13 @@ class _BoardCard extends StatelessWidget {
   final Storyboard board;
   final VoidCallback onTap;
   final VoidCallback onDelete;
+  final VoidCallback? onShare;
 
   const _BoardCard({
     required this.board,
     required this.onTap,
     required this.onDelete,
+    this.onShare,
   });
 
   @override
@@ -330,7 +347,10 @@ class _BoardCard extends StatelessWidget {
                             child: Icon(Icons.dashboard_rounded,
                                 size: 32, color: AppTheme.textMuted),
                           )
-                        : _MiniThumbnail(items: items),
+                        : _MiniThumbnail(
+                            items: items,
+                            boardData: board.storyboardData,
+                          ),
                   ),
                 ),
                 // Title + date + logo
@@ -373,6 +393,25 @@ class _BoardCard extends StatelessWidget {
                 ),
               ],
             ),
+            // Share button
+            if (onShare != null)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: GestureDetector(
+                  onTap: onShare,
+                  child: Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.5),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.share_rounded,
+                        size: 13, color: Colors.white),
+                  ),
+                ),
+              ),
             // Delete button
             Positioned(
               top: 6,
@@ -414,49 +453,90 @@ class _BoardCard extends StatelessWidget {
   }
 }
 
-// ─── Mini Thumbnail Grid ───────────────────────
+// ─── Canvas Preview — renders board exactly as designed ────────
 class _MiniThumbnail extends StatelessWidget {
   final List<dynamic> items;
-  const _MiniThumbnail({required this.items});
+  final Map<String, dynamic> boardData;
+
+  const _MiniThumbnail({required this.items, required this.boardData});
 
   @override
   Widget build(BuildContext context) {
-    final productItems = items
-        .where((i) =>
-            i is Map &&
-            (i['type'] == 'product') &&
-            (i['content'] ?? '').toString().startsWith('http'))
-        .take(4)
-        .toList();
-
-    if (productItems.isEmpty) {
+    if (items.isEmpty) {
       return Center(
-        child:
-            Icon(Icons.style_rounded, size: 28, color: AppTheme.textMuted),
+        child: Icon(Icons.style_rounded, size: 28, color: AppTheme.textMuted),
       );
     }
 
-    return GridView.count(
-      crossAxisCount: 2,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(6),
-      mainAxisSpacing: 4,
-      crossAxisSpacing: 4,
-      children: productItems.map((item) {
-        final url = item['content'] ?? '';
-        return ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: Image.network(
-            url,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => Container(
-              color: AppTheme.bgCardLight,
-              child: const Icon(Icons.image,
-                  size: 16, color: AppTheme.textMuted),
-            ),
-          ),
-        );
-      }).toList(),
-    );
+    // Use the stored canvas dimensions from the editor.
+    // Falls back to sensible defaults if not present (old boards).
+    final canvasW = (boardData['canvasWidth'] as num?)?.toDouble() ?? 358;
+    final canvasH = (boardData['canvasHeight'] as num?)?.toDouble() ?? 500;
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final cardW = constraints.maxWidth;
+      final cardH = constraints.maxHeight;
+
+      // Scale uniformly to fit the card, preserving aspect ratio
+      final scaleX = cardW / canvasW;
+      final scaleY = cardH / canvasH;
+      final scale = scaleX < scaleY ? scaleX : scaleY;
+
+      // Center the scaled canvas in the card
+      final offsetX = (cardW - canvasW * scale) / 2;
+      final offsetY = (cardH - canvasH * scale) / 2;
+
+      return ClipRect(
+        child: Stack(
+          children: items.map((item) {
+            if (item is! Map) return const SizedBox.shrink();
+
+            final type = item['type'] ?? '';
+            final content = (item['content'] ?? '').toString();
+            final x = (item['x'] as num?)?.toDouble() ?? 0;
+            final y = (item['y'] as num?)?.toDouble() ?? 0;
+            final w = (item['width'] as num?)?.toDouble() ?? 100;
+            final h = (item['height'] as num?)?.toDouble() ?? 100;
+            final rotation = (item['rotation'] as num?)?.toDouble() ?? 0;
+
+            Widget child;
+            if (type == 'product' && content.startsWith('http')) {
+              child = Image.network(
+                content,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              );
+            } else if (type == 'sticker') {
+              child = FittedBox(
+                child: Text(content, style: const TextStyle(fontSize: 40)),
+              );
+            } else if (type == 'text') {
+              final meta = item['metadata'] as Map?;
+              child = Text(
+                content,
+                style: TextStyle(
+                  fontSize: ((meta?['fontSize'] as num?)?.toDouble() ?? 16) * scale,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+              );
+            } else {
+              return const SizedBox.shrink();
+            }
+
+            return Positioned(
+              left: offsetX + x * scale,
+              top: offsetY + y * scale,
+              width: w * scale,
+              height: h * scale,
+              child: Transform.rotate(
+                angle: rotation,
+                child: child,
+              ),
+            );
+          }).toList(),
+        ),
+      );
+    });
   }
 }
