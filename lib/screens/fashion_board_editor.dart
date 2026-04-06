@@ -16,6 +16,7 @@ import '../services/background_removal_service.dart';
 import '../models/storyboard.dart';
 import '../services/storyboard_service.dart';
 import '../theme/app_theme.dart';
+import 'fashion_board_screen.dart' show boardsRefreshNotifier;
 
 class FashionBoardEditor extends StatefulWidget {
   final Storyboard? existingBoard;
@@ -556,6 +557,8 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
         );
         _savedToken = created.token;
       }
+      // Refresh boards list immediately
+      boardsRefreshNotifier.value++;
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

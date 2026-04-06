@@ -190,13 +190,14 @@ class _DealCardState extends State<DealCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Brand name (tappable → brand page)
-                      if (widget.deal.source.isNotEmpty)
+                      if ((widget.deal.brand.isNotEmpty ? widget.deal.brand : widget.deal.source).isNotEmpty)
                         GestureDetector(
-                          onTap: () => context.push(
-                            '/brand/${Uri.encodeComponent(widget.deal.source)}',
-                          ),
+                          onTap: () {
+                            final name = widget.deal.brand.isNotEmpty ? widget.deal.brand : widget.deal.source;
+                            context.push('/brand/${Uri.encodeComponent(name)}');
+                          },
                           child: Text(
-                            widget.deal.source.toUpperCase(),
+                            (widget.deal.brand.isNotEmpty ? widget.deal.brand : widget.deal.source).toUpperCase(),
                             style: const TextStyle(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,

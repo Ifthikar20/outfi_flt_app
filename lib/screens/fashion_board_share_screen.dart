@@ -8,6 +8,7 @@ import '../services/api_client.dart';
 import '../services/storyboard_service.dart';
 import '../models/storyboard.dart';
 import '../theme/app_theme.dart';
+import 'fashion_board_screen.dart' show boardsRefreshNotifier;
 
 class FashionBoardShareScreen extends StatefulWidget {
   final Map<String, dynamic> boardData;
@@ -68,6 +69,8 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
           _savedToken = board.token;
           _isPublic = board.isPublic;
         });
+        // Notify boards list so it shows the new board immediately
+        boardsRefreshNotifier.value++;
       }
     } catch (e) {
       if (mounted) setState(() => _saving = false);
@@ -110,7 +113,8 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
   }
 
   void _done() {
-    // Pop back to boards list
+    // Notify boards list to refresh, then navigate
+    boardsRefreshNotifier.value++;
     context.go('/boards');
   }
 

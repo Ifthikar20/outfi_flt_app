@@ -8,6 +8,7 @@ class Deal {
   final String currency;
   final String? image;
   final String source;
+  final String brand;
   final String seller;
   final String? url;
   final double? rating;
@@ -30,6 +31,7 @@ class Deal {
     this.currency = 'USD',
     this.image,
     this.source = '',
+    this.brand = '',
     this.seller = '',
     this.url,
     this.rating,
@@ -63,6 +65,7 @@ class Deal {
       currency: json['currency'] ?? 'USD',
       image: imageUrl,
       source: json['source'] ?? '',
+      brand: json['brand'] ?? json['merchant_name'] ?? '',
       seller: json['seller'] ?? '',
       url: json['url'],
       rating: _parseDouble(json['rating']),
@@ -91,6 +94,7 @@ class Deal {
       currency: currency,
       image: image,
       source: source,
+      brand: brand,
       seller: seller,
       url: url,
       rating: rating,
@@ -114,6 +118,7 @@ class Deal {
       'original_price': originalPrice,
       'image_url': image,
       'source': source,
+      'brand': brand,
       'seller': seller,
       'url': url,
       'shipping': shipping,

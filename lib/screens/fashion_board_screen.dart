@@ -6,6 +6,9 @@ import '../services/storyboard_service.dart';
 import '../models/storyboard.dart';
 import '../theme/app_theme.dart';
 
+/// Global notifier to trigger board list refresh from anywhere
+final boardsRefreshNotifier = ValueNotifier<int>(0);
+
 class FashionBoardScreen extends StatefulWidget {
   const FashionBoardScreen({super.key});
 
@@ -23,11 +26,15 @@ class _FashionBoardScreenState extends State<FashionBoardScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    boardsRefreshNotifier.addListener(_onRefreshNotified);
     _load();
   }
 
+  void _onRefreshNotified() => _load();
+
   @override
   void dispose() {
+    boardsRefreshNotifier.removeListener(_onRefreshNotified);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

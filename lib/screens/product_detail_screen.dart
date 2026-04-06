@@ -121,12 +121,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
 
-                    // Cloudy fade into background
+                    // Subtle fade into background
                     Positioned(
                       bottom: -1,
                       left: 0,
                       right: 0,
-                      height: 120,
+                      height: 80,
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -134,12 +134,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               AppTheme.bgMain.withValues(alpha: 0.0),
-                              AppTheme.bgMain.withValues(alpha: 0.15),
-                              AppTheme.bgMain.withValues(alpha: 0.5),
-                              AppTheme.bgMain.withValues(alpha: 0.85),
+                              AppTheme.bgMain.withValues(alpha: 0.3),
+                              AppTheme.bgMain.withValues(alpha: 0.8),
                               AppTheme.bgMain,
                             ],
-                            stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+                            stops: const [0.0, 0.35, 0.7, 1.0],
                           ),
                         ),
                       ),
@@ -179,13 +178,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // Brand (tappable)
-                      if (_deal.source.isNotEmpty)
+                      if (_deal.brand.isNotEmpty)
                         GestureDetector(
                           onTap: () => context.push(
-                            '/brand/${Uri.encodeComponent(_deal.source)}',
+                            '/brand/${Uri.encodeComponent(_deal.brand)}',
                           ),
                           child: Text(
-                            _deal.source.toUpperCase(),
+                            _deal.brand.toUpperCase(),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -307,19 +306,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       const SizedBox(height: 20),
 
-                      // ── Info chips ─────────────
+                      // ── Mini tags ─────────────
                       Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
+                        spacing: 6,
+                        runSpacing: 6,
                         children: [
                           if (_deal.condition.isNotEmpty)
-                            _InfoChip(icon: Icons.verified_outlined, label: _deal.condition),
+                            _MiniTag(label: _deal.condition),
                           if (_deal.shipping.isNotEmpty)
-                            _InfoChip(icon: Icons.local_shipping_outlined, label: _deal.shipping),
+                            _MiniTag(label: _deal.shipping),
                           if (_deal.inStock)
-                            const _InfoChip(icon: Icons.check_circle_outline, label: 'In Stock')
+                            const _MiniTag(label: 'In Stock')
                           else
-                            const _InfoChip(icon: Icons.cancel_outlined, label: 'Out of Stock'),
+                            const _MiniTag(label: 'Out of Stock'),
                         ],
                       ),
 
@@ -329,58 +328,56 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         _CollapsibleDetails(deal: _deal),
                       ],
 
-                      // Seller info
-                      if (_deal.seller.isNotEmpty) ...[
-                        const SizedBox(height: 24),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: AppTheme.bgCard,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppTheme.border, width: 0.5),
+                      // ── Brand card ─────────────
+                      if (_deal.brand.isNotEmpty) ...[
+                        const SizedBox(height: 20),
+                        GestureDetector(
+                          onTap: () => context.push(
+                            '/brand/${Uri.encodeComponent(_deal.brand)}',
                           ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 40,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: AppTheme.bgMain,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: const Center(
-                                  child: Icon(Icons.store_outlined,
-                                      color: AppTheme.textSecondary, size: 22),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Sold by ${_deal.seller}',
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.bgCard,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.border, width: 0.5),
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 36, height: 36,
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.accent.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      _deal.brand[0].toUpperCase(),
                                       style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: AppTheme.textPrimary,
+                                        fontSize: 16, fontWeight: FontWeight.w700, color: AppTheme.accent,
                                       ),
                                     ),
-                                    if (_deal.source.isNotEmpty)
-                                      Text(
-                                        'via ${_deal.source}',
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.textSecondary,
-                                        ),
-                                      ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                              const Icon(Icons.chevron_right,
-                                  color: AppTheme.textMuted),
-                            ],
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _deal.brand,
+                                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+                                      ),
+                                      const Text(
+                                        'View all products',
+                                        style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right, size: 18, color: AppTheme.textMuted),
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -882,37 +879,28 @@ class _CircleButtonState extends State<_CircleButton>
   }
 }
 
-// ─── Info Chip ──────────────────────────────
+// ─── Mini Tag ──────────────────────────────
 
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
+class _MiniTag extends StatelessWidget {
   final String label;
 
-  const _InfoChip({required this.icon, required this.label});
+  const _MiniTag({required this.label});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border, width: 0.5),
+        color: AppTheme.bgInput,
+        borderRadius: BorderRadius.circular(6),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppTheme.textSecondary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: AppTheme.textPrimary,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 10,
+          color: AppTheme.textSecondary,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
