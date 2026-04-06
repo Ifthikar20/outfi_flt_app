@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
@@ -272,12 +273,13 @@ class _FashionTimelineScreenState extends State<FashionTimelineScreen> {
                             if ((entry['image_url'] ?? '').isNotEmpty)
                               ClipRRect(
                                 borderRadius: BorderRadius.circular(8),
-                                child: Image.network(
-                                  entry['image_url'],
+                                child: CachedNetworkImage(
+                                  imageUrl: entry['image_url'],
                                   width: 48,
                                   height: 48,
                                   fit: BoxFit.cover,
-                                  errorBuilder: (_, __, ___) =>
+                                  memCacheWidth: 96,
+                                  errorWidget: (_, __, ___) =>
                                       const SizedBox.shrink(),
                                 ),
                               ),
@@ -401,10 +403,11 @@ class _FashionTimelineScreenState extends State<FashionTimelineScreen> {
                           padding: const EdgeInsets.all(2),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
-                            child: Image.network(
-                              entry['image_url'],
+                            child: CachedNetworkImage(
+                              imageUrl: entry['image_url'],
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => const Icon(
+                              memCacheWidth: 100,
+                              errorWidget: (_, __, ___) => const Icon(
                                   Icons.checkroom,
                                   size: 16,
                                   color: AppTheme.accent),

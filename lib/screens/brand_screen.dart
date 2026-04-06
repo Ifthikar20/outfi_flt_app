@@ -43,24 +43,9 @@ class _BrandScreenState extends State<BrandScreen> {
           ),
         ),
       ),
-      body: BlocBuilder<DealsBloc, DealsState>(
-        builder: (context, state) {
-          if (state is DealsLoading || state is DealsInitial) {
-            return GridView.builder(
-              padding: const EdgeInsets.all(20),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.62,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-              ),
-              itemCount: 6,
-              itemBuilder: (_, __) => const LoadingShimmer(),
-            );
-          }
-
+      body: BlocConsumer<DealsBloc, DealsState>(
+        listener: (context, state) {
           if (state is DealsError) {
-            // Auto-retry after 3s
             Future.delayed(const Duration(seconds: 3), () {
               if (mounted) {
                 context.read<DealsBloc>().add(DealsSearchRequested(
@@ -69,6 +54,10 @@ class _BrandScreenState extends State<BrandScreen> {
                 ));
               }
             });
+          }
+        },
+        builder: (context, state) {
+          if (state is DealsLoading || state is DealsInitial || state is DealsError) {
             return GridView.builder(
               padding: const EdgeInsets.all(20),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

@@ -115,6 +115,11 @@ class ProfileScreen extends StatelessWidget {
                     onTap: () => context.go('/boards'),
                   ),
                   _SettingsRow(
+                    icon: Icons.notifications_active_outlined,
+                    label: 'Deal Alerts',
+                    onTap: () => context.push('/deal-alerts'),
+                  ),
+                  _SettingsRow(
                     icon: Icons.calendar_month,
                     label: 'Fashion Timeline',
                     onTap: () => context.push('/timeline'),

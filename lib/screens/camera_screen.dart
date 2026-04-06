@@ -565,7 +565,18 @@ class _CameraScreenState extends State<CameraScreen>
           ),
 
           // Results grid
-          BlocBuilder<DealsBloc, DealsState>(
+          BlocConsumer<DealsBloc, DealsState>(
+            listener: (context, state) {
+              if (state is DealsError && _capturedImagePath != null) {
+                Future.delayed(const Duration(seconds: 3), () {
+                  if (mounted) {
+                    context.read<DealsBloc>().add(
+                      DealsImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
+                    );
+                  }
+                });
+              }
+            },
             builder: (context, state) {
               if (state is DealsLoading) {
                 return SliverToBoxAdapter(
@@ -595,16 +606,6 @@ class _CameraScreenState extends State<CameraScreen>
               }
 
               if (state is DealsError) {
-                // Auto-retry after 3s
-                if (_capturedImagePath != null) {
-                  Future.delayed(const Duration(seconds: 3), () {
-                    if (mounted) {
-                      context.read<DealsBloc>().add(
-                        DealsImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
-                      );
-                    }
-                  });
-                }
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverGrid(

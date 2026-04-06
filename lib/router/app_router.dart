@@ -18,6 +18,7 @@ import '../screens/brand_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../screens/paywall_screen.dart';
 import '../screens/preferences_screen.dart';
+import '../screens/deal_alerts_screen.dart';
 import '../screens/fashion_timeline_screen.dart';
 import '../screens/app_shell.dart';
 import '../models/deal.dart';
@@ -171,6 +172,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/preferences',
       builder: (context, state) => const PreferencesScreen(),
+    ),
+    GoRoute(
+      path: '/deal-alerts',
+      builder: (context, state) => const DealAlertsScreen(),
     ),
     GoRoute(
       path: '/timeline',

@@ -496,34 +496,19 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
 
             // Deals grid
-            BlocBuilder<DealsBloc, DealsState>(
-              builder: (context, state) {
-                if (state is DealsLoading || state is DealsInitial) {
-                  return SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 14,
-                        mainAxisSpacing: 14,
-                      ),
-                      delegate: SliverChildBuilderDelegate(
-                        (_, __) => const LoadingShimmer(),
-                        childCount: 6,
-                      ),
-                    ),
-                  );
-                }
-
+            BlocConsumer<DealsBloc, DealsState>(
+              listener: (context, state) {
                 if (state is DealsError) {
-                  // Auto-retry after 3s instead of showing error
+                  // Retry once after 3s — listener fires once per state change
                   Future.delayed(const Duration(seconds: 3), () {
                     if (mounted) {
                       context.read<DealsBloc>().add(DealsFetchTrending());
                     }
                   });
-                  // Show shimmer cards while retrying
+                }
+              },
+              builder: (context, state) {
+                if (state is DealsLoading || state is DealsInitial || state is DealsError) {
                   return SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverGrid(

@@ -320,28 +320,16 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
             // ─── Results ────────────────────────────
             Expanded(
-              child: BlocBuilder<DealsBloc, DealsState>(
-                builder: (context, state) {
-                  if (state is DealsLoading) {
-                    return GridView.builder(
-                      padding: const EdgeInsets.all(16),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        childAspectRatio: 0.62,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                      ),
-                      itemCount: 6,
-                      itemBuilder: (_, __) => const LoadingShimmer(),
-                    );
-                  }
-
+              child: BlocConsumer<DealsBloc, DealsState>(
+                listener: (context, state) {
                   if (state is DealsError) {
-                    // Auto-retry after 3s
                     Future.delayed(const Duration(seconds: 3), () {
                       if (mounted) _search(_searchController.text);
                     });
+                  }
+                },
+                builder: (context, state) {
+                  if (state is DealsLoading || state is DealsError) {
                     return GridView.builder(
                       padding: const EdgeInsets.all(16),
                       gridDelegate:

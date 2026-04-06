@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
             children: [
               // ─── Top half: Linen texture with blur fade + logo ───
               SizedBox(
-                height: MediaQuery.of(context).size.height * 0.38,
+                height: MediaQuery.of(context).size.height * 0.55,
                 width: double.infinity,
                 child: Stack(
                   fit: StackFit.expand,
@@ -67,27 +67,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       'assets/images/login_bg.png',
                       fit: BoxFit.cover,
                     ),
-                    // Blur overlay on bottom portion
+                    // Seamless fade into bgMain — no visible edge
                     Positioned(
-                      bottom: 0,
+                      bottom: -1,
                       left: 0,
                       right: 0,
-                      height: 120,
-                      child: ClipRect(
-                        child: BackdropFilter(
-                          filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.topCenter,
-                                end: Alignment.bottomCenter,
-                                colors: [
-                                  AppTheme.bgMain.withValues(alpha: 0.0),
-                                  AppTheme.bgMain.withValues(alpha: 0.6),
-                                  AppTheme.bgMain,
-                                ],
-                              ),
-                            ),
+                      height: 300,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AppTheme.bgMain.withValues(alpha: 0.0),
+                              AppTheme.bgMain.withValues(alpha: 0.05),
+                              AppTheme.bgMain.withValues(alpha: 0.15),
+                              AppTheme.bgMain.withValues(alpha: 0.4),
+                              AppTheme.bgMain.withValues(alpha: 0.7),
+                              AppTheme.bgMain.withValues(alpha: 0.9),
+                              AppTheme.bgMain,
+                            ],
+                            stops: const [0.0, 0.1, 0.25, 0.45, 0.65, 0.85, 1.0],
                           ),
                         ),
                       ),

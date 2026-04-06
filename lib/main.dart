@@ -4,11 +4,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'bloc/auth/auth_bloc.dart';
 import 'bloc/deals/deals_bloc.dart';
+import 'bloc/deal_alerts/deal_alerts_bloc.dart';
 import 'bloc/favorites/favorites_bloc.dart';
 
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/deal_service.dart';
+import 'services/deal_alert_service.dart';
 import 'services/favorites_service.dart';
 import 'services/featured_service.dart';
 
@@ -60,6 +62,11 @@ class OutfiApp extends StatelessWidget {
           BlocProvider<FavoritesBloc>(
             create: (_) => FavoritesBloc(
               favoritesService: FavoritesService(apiClient),
+            ),
+          ),
+          BlocProvider<DealAlertsBloc>(
+            create: (_) => DealAlertsBloc(
+              dealAlertService: DealAlertService(apiClient),
             ),
           ),
         ],

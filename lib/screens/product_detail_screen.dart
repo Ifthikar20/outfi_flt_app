@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
+import '../bloc/deal_alerts/deal_alerts_bloc.dart';
 import '../bloc/favorites/favorites_bloc.dart';
 import '../models/deal.dart';
 import '../services/api_client.dart';
@@ -120,6 +121,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                     ),
 
+                    // Cloudy fade into background
+                    Positioned(
+                      bottom: -1,
+                      left: 0,
+                      right: 0,
+                      height: 120,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              AppTheme.bgMain.withValues(alpha: 0.0),
+                              AppTheme.bgMain.withValues(alpha: 0.15),
+                              AppTheme.bgMain.withValues(alpha: 0.5),
+                              AppTheme.bgMain.withValues(alpha: 0.85),
+                              AppTheme.bgMain,
+                            ],
+                            stops: const [0.0, 0.2, 0.5, 0.8, 1.0],
+                          ),
+                        ),
+                      ),
+                    ),
+
                     // Discount badge
                     if (_deal.hasDiscount)
                       Positioned(
@@ -223,78 +248,64 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
                       const SizedBox(height: 16),
 
-                      // ── Action Buttons ──────────
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          onPressed: _launchAffiliateUrl,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.shopping_bag_outlined, size: 20),
-                              SizedBox(width: 8),
-                              Text(
-                                'Buy Now',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-
-                      // Secondary buttons row
+                      // ── Action Buttons (compact row) ──────────
                       Row(
                         children: [
+                          // Buy Now (icon button)
                           Expanded(
-                            child: _SecondaryButton(
-                              icon: _deal.isSaved
-                                  ? Icons.bookmark
-                                  : Icons.bookmark_border,
-                              label: _deal.isSaved ? 'Saved' : 'Save',
-                              highlight: _deal.isSaved,
-                              onTap: () {
-                                if (_deal.isSaved) {
-                                  context.read<FavoritesBloc>().add(
-                                      FavoritesRemoveRequested(_deal.id));
-                                } else {
-                                  context.read<FavoritesBloc>().add(
-                                      FavoritesSaveRequested(_deal));
-                                }
-                                setState(
-                                    () => _deal = _deal.copyWith(
-                                        isSaved: !_deal.isSaved));
-                              },
+                            flex: 2,
+                            child: SizedBox(
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: () => _showRoutingPage(context),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primary,
+                                  foregroundColor: Colors.white,
+                                  elevation: 0,
+                                  padding: EdgeInsets.zero,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.shopping_bag_outlined, size: 18),
+                                    SizedBox(width: 6),
+                                    Text('Buy', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                                  ],
+                                ),
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _SecondaryButton(
-                              icon: Icons.dashboard_customize_outlined,
-                              label: 'Add to Board',
-                              onTap: () {
-                                context.push('/boards/editor', extra: {
-                                  'addDeal': _deal,
-                                });
-                              },
-                            ),
+                          const SizedBox(width: 8),
+                          // Save
+                          _SecondaryButton(
+                            icon: _deal.isSaved ? Icons.bookmark : Icons.bookmark_border,
+                            label: '',
+                            highlight: _deal.isSaved,
+                            onTap: () {
+                              if (_deal.isSaved) {
+                                context.read<FavoritesBloc>().add(FavoritesRemoveRequested(_deal.id));
+                              } else {
+                                context.read<FavoritesBloc>().add(FavoritesSaveRequested(_deal));
+                              }
+                              setState(() => _deal = _deal.copyWith(isSaved: !_deal.isSaved));
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          // Add to Board
+                          _SecondaryButton(
+                            icon: Icons.dashboard_customize_outlined,
+                            label: '',
+                            onTap: () {
+                              context.push('/boards/editor', extra: {'addDeal': _deal});
+                            },
                           ),
                         ],
                       ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 20),
 
                       // ── Info chips ─────────────
                       Wrap(
@@ -302,67 +313,20 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         runSpacing: 8,
                         children: [
                           if (_deal.condition.isNotEmpty)
-                            _InfoChip(
-                                icon: Icons.verified_outlined,
-                                label: _deal.condition),
+                            _InfoChip(icon: Icons.verified_outlined, label: _deal.condition),
                           if (_deal.shipping.isNotEmpty)
-                            _InfoChip(
-                                icon: Icons.local_shipping_outlined,
-                                label: _deal.shipping),
+                            _InfoChip(icon: Icons.local_shipping_outlined, label: _deal.shipping),
                           if (_deal.inStock)
-                            const _InfoChip(
-                                icon: Icons.check_circle_outline,
-                                label: 'In Stock')
+                            const _InfoChip(icon: Icons.check_circle_outline, label: 'In Stock')
                           else
-                            const _InfoChip(
-                                icon: Icons.cancel_outlined,
-                                label: 'Out of Stock'),
+                            const _InfoChip(icon: Icons.cancel_outlined, label: 'Out of Stock'),
                         ],
                       ),
 
-                      // ── Product Details (compact) ─────────
-                      if (_deal.description.isNotEmpty) ...[
+                      // ── Collapsible Product Details ─────────
+                      if (_deal.description.isNotEmpty || _deal.features.isNotEmpty) ...[
                         const SizedBox(height: 16),
-                        Text(
-                          _deal.description,
-                          maxLines: 3,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            color: AppTheme.textSecondary,
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-
-                      // Features
-                      if (_deal.features.isNotEmpty) ...[
-                        const SizedBox(height: 12),
-                        ...(_deal.features.take(3).map((f) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Row(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                children: [
-                                  Text('•  ',
-                                      style: TextStyle(
-                                          color: AppTheme.textPrimary,
-                                          fontSize: 12)),
-                                  Expanded(
-                                    child: Text(
-                                      f,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.textSecondary,
-                                        height: 1.3,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ))),
+                        _CollapsibleDetails(deal: _deal),
                       ],
 
                       // Seller info
@@ -504,17 +468,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   onTap: () => context.pop(),
                 ),
                 _CircleButton(
-                  icon: Icons.share_outlined,
+                  icon: Icons.notifications_active_outlined,
                   onTap: () {
-                    if (_deal.url != null) {
-                      // Could use Share.share here
-                    }
+                    context.read<DealAlertsBloc>().add(
+                      DealAlertCreateRequested(
+                        description: _deal.title,
+                        maxPrice: _deal.price,
+                      ),
+                    );
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Deal alert created! We\'ll find similar deals for you.'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
                   },
                 ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showRoutingPage(BuildContext context) {
+    final storeName = _deal.source.isNotEmpty ? _deal.source : 'store';
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        pageBuilder: (_, __, ___) => _RoutingPage(
+          storeName: storeName,
+          onComplete: () {
+            Navigator.of(context).pop();
+            _launchAffiliateUrl();
+          },
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+        transitionDuration: const Duration(milliseconds: 200),
       ),
     );
   }
@@ -779,7 +771,8 @@ class _SecondaryButtonState extends State<_SecondaryButton>
       child: ScaleTransition(
         scale: _scale,
         child: Container(
-          height: 44,
+          height: 48,
+          width: widget.label.isEmpty ? 48 : null,
           decoration: BoxDecoration(
             color: widget.highlight
                 ? AppTheme.primary.withValues(alpha: 0.06)
@@ -794,23 +787,26 @@ class _SecondaryButtonState extends State<_SecondaryButton>
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: widget.label.isEmpty ? MainAxisSize.min : MainAxisSize.max,
             children: [
               Icon(widget.icon,
-                  size: 16,
+                  size: 18,
                   color: widget.highlight
                       ? AppTheme.accent
                       : AppTheme.textPrimary),
-              const SizedBox(width: 6),
-              Text(
-                widget.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: widget.highlight
-                      ? AppTheme.accent
-                      : AppTheme.textPrimary,
+              if (widget.label.isNotEmpty) ...[
+                const SizedBox(width: 6),
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: widget.highlight
+                        ? AppTheme.accent
+                        : AppTheme.textPrimary,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
@@ -998,6 +994,178 @@ class _SimilarProductCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Collapsible Product Details ─────────────────
+class _CollapsibleDetails extends StatefulWidget {
+  final Deal deal;
+  const _CollapsibleDetails({required this.deal});
+
+  @override
+  State<_CollapsibleDetails> createState() => _CollapsibleDetailsState();
+}
+
+class _CollapsibleDetailsState extends State<_CollapsibleDetails> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: [
+              const Text(
+                'Product Details',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const Spacer(),
+              AnimatedRotation(
+                turns: _expanded ? 0.5 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: const Icon(Icons.keyboard_arrow_down, size: 20, color: AppTheme.textMuted),
+              ),
+            ],
+          ),
+        ),
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: Padding(
+            padding: const EdgeInsets.only(top: 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.deal.description.isNotEmpty)
+                  Text(
+                    widget.deal.description,
+                    style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.5),
+                  ),
+                if (widget.deal.features.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  ...widget.deal.features.take(5).map((f) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('•  ', style: TextStyle(color: AppTheme.textPrimary, fontSize: 12)),
+                        Expanded(
+                          child: Text(f, maxLines: 2, overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary, height: 1.3)),
+                        ),
+                      ],
+                    ),
+                  )),
+                ],
+              ],
+            ),
+          ),
+          crossFadeState: _expanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 250),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Routing Animation Page ──────────────────────
+class _RoutingPage extends StatefulWidget {
+  final String storeName;
+  final VoidCallback onComplete;
+
+  const _RoutingPage({required this.storeName, required this.onComplete});
+
+  @override
+  State<_RoutingPage> createState() => _RoutingPageState();
+}
+
+class _RoutingPageState extends State<_RoutingPage> with SingleTickerProviderStateMixin {
+  late final AnimationController _dotCtrl;
+  int _dotCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _dotCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    )..addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() => _dotCount = (_dotCount + 1) % 4);
+        _dotCtrl.forward(from: 0);
+      }
+    });
+    _dotCtrl.forward();
+
+    // Navigate after short delay
+    Future.delayed(const Duration(milliseconds: 1800), () {
+      if (mounted) widget.onComplete();
+    });
+  }
+
+  @override
+  void dispose() {
+    _dotCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dots = '.' * (_dotCount + 1);
+    return Scaffold(
+      backgroundColor: AppTheme.bgMain,
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Store icon with pulse
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0.8, end: 1.0),
+              duration: const Duration(milliseconds: 800),
+              curve: Curves.elasticOut,
+              builder: (_, scale, child) => Transform.scale(scale: scale, child: child),
+              child: Container(
+                width: 72, height: 72,
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.storefront_outlined, size: 32, color: AppTheme.accent),
+              ),
+            ),
+            const SizedBox(height: 28),
+            Text(
+              'Routing to ${widget.storeName}$dots',
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+                letterSpacing: 0.2,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Opening in your browser',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
+            const SizedBox(height: 32),
+            SizedBox(
+              width: 24, height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: AppTheme.accent,
               ),
             ),
           ],

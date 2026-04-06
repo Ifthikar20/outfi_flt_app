@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_client.dart';
 import '../services/storyboard_service.dart';
@@ -501,10 +502,12 @@ class _MiniThumbnail extends StatelessWidget {
 
             Widget child;
             if (type == 'product' && content.startsWith('http')) {
-              child = Image.network(
-                content,
+              child = CachedNetworkImage(
+                imageUrl: content,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                memCacheWidth: 300,
+                fadeInDuration: const Duration(milliseconds: 150),
+                errorWidget: (_, __, ___) => const SizedBox.shrink(),
               );
             } else if (type == 'sticker') {
               child = FittedBox(
