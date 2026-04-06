@@ -345,20 +345,31 @@ class _BoardCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Thumbnail area
+                // Thumbnail area — use snapshot image if available
                 Expanded(
                   child: ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(AppTheme.radiusMd)),
-                    child: items.isEmpty
-                        ? Center(
-                            child: Icon(Icons.dashboard_rounded,
-                                size: 32, color: AppTheme.textMuted),
+                    child: board.snapshotUrl.isNotEmpty
+                        ? CachedNetworkImage(
+                            imageUrl: board.snapshotUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            memCacheWidth: 400,
+                            fadeInDuration: const Duration(milliseconds: 150),
+                            errorWidget: (_, __, ___) => items.isNotEmpty
+                                ? _MiniThumbnail(items: items, boardData: board.storyboardData)
+                                : Center(child: Icon(Icons.dashboard_rounded, size: 32, color: AppTheme.textMuted)),
                           )
-                        : _MiniThumbnail(
-                            items: items,
-                            boardData: board.storyboardData,
-                          ),
+                        : items.isEmpty
+                            ? Center(
+                                child: Icon(Icons.dashboard_rounded,
+                                    size: 32, color: AppTheme.textMuted),
+                              )
+                            : _MiniThumbnail(
+                                items: items,
+                                boardData: board.storyboardData,
+                              ),
                   ),
                 ),
                 // Title + date + logo

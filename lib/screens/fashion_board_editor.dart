@@ -515,9 +515,24 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     return renderBox?.size ?? const Size(358, 500);
   }
 
-  Future<void> _saveBoard() async {
+  Future<void> _saveBoard({bool silent = false}) async {
     if (_saving) return;
     setState(() => _saving = true);
+
+    final service = StoryboardService(_apiClient);
+
+    // Capture snapshot for the boards grid preview
+    String? snapshotPath;
+    final imageBytes = await _captureCanvas();
+    if (imageBytes != null) {
+      try {
+        final uploadResult = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
+        final uri = Uri.tryParse(uploadResult);
+        if (uri != null && uri.path.isNotEmpty) {
+          snapshotPath = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
+        }
+      } catch (_) {}
+    }
 
     final canvasSize = _getCanvasSize();
     final boardData = {
@@ -527,53 +542,40 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
       'canvasHeight': canvasSize.height,
       'items': _items.map((i) {
         final json = i.toJson();
-        // Double-ensure no binary data leaks into the payload
         if (json['metadata'] is Map) {
           (json['metadata'] as Map).remove('bgRemovedBytes');
           (json['metadata'] as Map).remove('bgProcessing');
         }
         return json;
       }).toList(),
+      if (snapshotPath != null) 'snapshot_path': snapshotPath,
     };
 
-    // Debug: log payload size
-    final payloadStr = boardData.toString();
-    debugPrint('📏 Board save payload: ${payloadStr.length} chars, ${_items.length} items');
-
     try {
-      final service = StoryboardService(_apiClient);
       if (_savedToken != null && _savedToken!.isNotEmpty) {
-        // Update existing
         await service.updateStoryboard(
           token: _savedToken!,
           title: _titleCtrl.text,
           storyboardData: boardData,
+          snapshotPath: snapshotPath,
         );
       } else {
-        // Create new
         final created = await service.createStoryboard(
           title: _titleCtrl.text,
           storyboardData: boardData,
         );
         _savedToken = created.token;
       }
-      // Refresh boards list immediately
       boardsRefreshNotifier.value++;
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Board saved ✓'),
-            duration: Duration(seconds: 2),
-          ),
+          const SnackBar(content: Text('Board saved ✓'), duration: Duration(seconds: 2)),
         );
       }
     } catch (e) {
-      if (mounted) {
+      if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Save failed: $e'),
-            duration: const Duration(seconds: 3),
-          ),
+          SnackBar(content: Text('Save failed: $e'), duration: const Duration(seconds: 3)),
         );
       }
     } finally {
@@ -582,35 +584,8 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
   }
 
   void _done() async {
-    final imageBytes = await _captureCanvas();
-    if (!mounted || imageBytes == null) return;
-
-    // Upload board snapshot to S3
-    String? snapshotPath;
-    try {
-      final service = StoryboardService(_apiClient);
-      final uploadResult = await service.uploadImage(imageBytes, filename: 'board_snapshot.jpg');
-      debugPrint('Board snapshot uploaded: $uploadResult');
-      final uri = Uri.tryParse(uploadResult);
-      if (uri != null && uri.path.isNotEmpty) {
-        snapshotPath = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
-      }
-    } catch (e) {
-      debugPrint('Snapshot upload failed (non-blocking): $e');
-    }
-
-    // Save board data to server
-    if (!_saving) await _saveBoard();
-
-    if (!mounted) return;
-
-    // Show success + go back to boards list (which will refresh)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Board saved ✓'), duration: Duration(seconds: 2)),
-    );
-
-    // Pop back — the boards list calls _load() on return from editor
-    Navigator.of(context).pop();
+    await _saveBoard(silent: true);
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override

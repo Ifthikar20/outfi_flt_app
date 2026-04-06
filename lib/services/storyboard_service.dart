@@ -47,10 +47,12 @@ class StoryboardService {
     required String token,
     required String title,
     required Map<String, dynamic> storyboardData,
+    String? snapshotPath,
   }) async {
     final response = await _api.put('/storyboard/$token/', data: {
       'title': title,
       'storyboard_data': storyboardData,
+      if (snapshotPath != null && snapshotPath.isNotEmpty) 'snapshot_path': snapshotPath,
     });
     _invalidateCache();
     return Storyboard.fromJson(response.data);
