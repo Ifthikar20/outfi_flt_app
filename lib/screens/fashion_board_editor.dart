@@ -690,48 +690,23 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
               ),
             ),
           ],
-          const SizedBox(width: 8),
-          // Save button
+          const Spacer(),
+          // Done button (saves + exits)
           GestureDetector(
-            onTap: _saving ? null : _saveBoard,
+            onTap: _saving ? null : _done,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.bgCard,
+                color: AppTheme.primary,
                 borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                border: Border.all(color: AppTheme.border, width: 0.5),
               ),
               child: _saving
                   ? const SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppTheme.accent))
-                  : const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.cloud_upload_outlined,
-                            size: 16, color: AppTheme.accent),
-                        SizedBox(width: 4),
-                        Text('Save',
-                            style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.accent)),
-                      ],
-                    ),
-            ),
-          ),
-          const SizedBox(width: 6),
-          GestureDetector(
-            onTap: _done,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-              decoration: BoxDecoration(
-                color: AppTheme.primary,
-                borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-              ),
-              child: const Text('Done',
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Done',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,
