@@ -13,6 +13,7 @@ import 'services/deal_service.dart';
 import 'services/deal_alert_service.dart';
 import 'services/favorites_service.dart';
 import 'services/featured_service.dart';
+import 'services/push_notification_service.dart';
 
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -34,6 +35,9 @@ void main() {
 
   // Create shared API client
   final apiClient = ApiClient();
+
+  // Initialize push notifications (requests permission + registers APNs token)
+  PushNotificationService().init();
 
   runApp(OutfiApp(apiClient: apiClient));
 }
