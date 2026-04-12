@@ -9,6 +9,7 @@ import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
 import '../models/deal.dart';
 import '../theme/app_theme.dart';
+import '../services/freemium_gate_service.dart';
 import '../services/location_service.dart';
 import '../widgets/loading_shimmer.dart';
 
@@ -132,7 +133,14 @@ class _CameraScreenState extends State<CameraScreen>
           _capturedImagePath = file.path;
           _isCapturing = false;
         });
-        // Trigger image search
+        // Freemium gate: 3 free image searches per day, then paywall.
+        final gate = FreemiumGateService();
+        if (!await gate.canImageSearch()) {
+          if (mounted) context.push('/premium');
+          return;
+        }
+        await gate.recordImageSearch();
+        if (!mounted) return;
         context.read<DealsBloc>().add(
               DealsImageSearchRequested(imagePath: file.path, latitude: _userLat, longitude: _userLng),
             );
@@ -162,6 +170,14 @@ class _CameraScreenState extends State<CameraScreen>
       );
       if (photo != null && mounted) {
         setState(() => _capturedImagePath = photo.path);
+        // Freemium gate: 3 free image searches per day, then paywall.
+        final gate = FreemiumGateService();
+        if (!await gate.canImageSearch()) {
+          if (mounted) context.push('/premium');
+          return;
+        }
+        await gate.recordImageSearch();
+        if (!mounted) return;
         context.read<DealsBloc>().add(
               DealsImageSearchRequested(imagePath: photo.path, latitude: _userLat, longitude: _userLng),
             );

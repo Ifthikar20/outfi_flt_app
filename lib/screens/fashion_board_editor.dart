@@ -1424,12 +1424,54 @@ class _CanvasItemWidgetState extends State<_CanvasItemWidget> {
     Widget child;
     switch (item.type) {
       case BoardItemType.product:
-        // If bg was removed, render transparent (no clip, no background)
+        // Three rendering paths, in priority order:
+        //   1. Fresh in-memory bytes (just ran bg removal this session)
+        //   2. Persisted bg-removed URL (reopened a board that was bg-removed
+        //      in a previous session — this is Phase 2 of the editor-state fix)
+        //   3. Original product image with background
+        // Paths 1 and 2 both render transparent (no ClipRRect, contain fit)
+        // so the bg-removed pixels aren't clipped.
         final bgBytes = item.metadata?['bgRemovedBytes'] as Uint8List?;
+        final bgRemovedUrl =
+            (item.metadata?['bgRemovedUrl'] as String?)?.trim() ?? '';
         final isProcessing = item.metadata?['bgProcessing'] == true;
+
         if (bgBytes != null) {
+          // Path 1: just-computed, bytes still in memory
           child = Image.memory(bgBytes, fit: BoxFit.contain);
+        } else if (bgRemovedUrl.isNotEmpty) {
+          // Path 2: persisted derivative from a prior session
+          child = CachedNetworkImage(
+            imageUrl: bgRemovedUrl,
+            fit: BoxFit.contain,
+            memCacheWidth: 400,
+            placeholder: (_, __) => Container(
+              color: AppTheme.bgCardLight,
+              child: const Center(
+                child: SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 1.5),
+                ),
+              ),
+            ),
+            // If the persisted derivative 404s, fall back to the original
+            // URL so the item is at least visible — degraded, not broken.
+            errorWidget: (_, __, ___) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: CachedNetworkImage(
+                imageUrl: item.content,
+                fit: BoxFit.cover,
+                memCacheWidth: 300,
+                errorWidget: (_, __, ___) => Container(
+                  color: AppTheme.bgCardLight,
+                  child: const Icon(Icons.image, color: AppTheme.textMuted),
+                ),
+              ),
+            ),
+          );
         } else {
+          // Path 3: original product image, cover fit inside rounded clip
           child = ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CachedNetworkImage(

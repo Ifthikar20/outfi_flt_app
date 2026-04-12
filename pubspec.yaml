@@ -1,7 +1,7 @@
 name: outfi_app
 description: "Outfi — AI-powered modest fashion discovery. Snap a photo, find the best deals."
 publish_to: 'none'
-version: 1.0.1+7
+version: 1.0.1+15
 
 environment:
   sdk: ^3.10.4

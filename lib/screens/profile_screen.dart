@@ -117,7 +117,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   _SettingsRow(
                     icon: Icons.notifications_active_outlined,
-                    label: 'Deal Alerts',
+                    label: 'Alerts',
                     onTap: () => context.push('/deal-alerts'),
                   ),
                   _SettingsRow(

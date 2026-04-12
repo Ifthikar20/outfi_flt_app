@@ -52,7 +52,7 @@ class _DealAlertsScreenState extends State<DealAlertsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Deal Alerts',
+          'Alerts',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
         ),
         actions: [
@@ -214,13 +214,15 @@ class _AlertCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Reference image or icon
+            // Reference image or status icon
             Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
                 color: alert.isPaused
                     ? AppTheme.bgInput
-                    : AppTheme.accent.withValues(alpha: 0.12),
+                    : alert.matchesCount > 0
+                        ? AppTheme.success.withValues(alpha: 0.12)
+                        : AppTheme.accent.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.antiAlias,
@@ -234,8 +236,16 @@ class _AlertCard extends StatelessWidget {
                       ),
                     )
                   : Icon(
-                      alert.isPaused ? Icons.pause_circle_outline : Icons.notifications_active_outlined,
-                      color: alert.isPaused ? AppTheme.textMuted : AppTheme.accent,
+                      alert.isPaused
+                          ? Icons.pause_circle_outline
+                          : alert.matchesCount > 0
+                              ? Icons.check_circle_outline
+                              : Icons.notifications_active_outlined,
+                      color: alert.isPaused
+                          ? AppTheme.textMuted
+                          : alert.matchesCount > 0
+                              ? AppTheme.success
+                              : AppTheme.accent,
                       size: 22,
                     ),
             ),
@@ -245,15 +255,50 @@ class _AlertCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    alert.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          alert.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: AppTheme.textPrimary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      // Status badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: alert.isPaused
+                              ? AppTheme.textMuted.withValues(alpha: 0.12)
+                              : alert.matchesCount > 0
+                                  ? AppTheme.success.withValues(alpha: 0.12)
+                                  : AppTheme.accent.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          alert.isPaused
+                              ? 'Paused'
+                              : alert.matchesCount > 0
+                                  ? 'Triggered'
+                                  : 'Active',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: alert.isPaused
+                                ? AppTheme.textMuted
+                                : alert.matchesCount > 0
+                                    ? AppTheme.success
+                                    : AppTheme.accent,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Row(
@@ -266,21 +311,14 @@ class _AlertCard extends StatelessWidget {
                         const SizedBox(width: 10),
                       ],
                       if (alert.matchesCount > 0)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.accent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            '${alert.matchesCount} deal${alert.matchesCount == 1 ? '' : 's'} found — tap to view',
-                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.accent),
-                          ),
+                        Text(
+                          '${alert.matchesCount} match${alert.matchesCount == 1 ? '' : 'es'} found — tap to view',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.success),
                         ),
                       if (alert.matchesCount == 0 && !alert.isPaused)
                         Text('Checking marketplaces...', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                       if (alert.isPaused)
-                        const Text('Paused', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
+                        Text('Not running', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
                     ],
                   ),
                 ],

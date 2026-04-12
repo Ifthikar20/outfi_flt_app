@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import '../theme/app_theme.dart';
 import '../services/api_client.dart';
+import '../services/freemium_gate_service.dart';
 import '../services/payment_service.dart';
 
 /// Outfi Premium paywall.
@@ -77,6 +78,9 @@ class _PaywallScreenState extends State<PaywallScreen> {
       // Wait a moment for the webhook to fire and activate the subscription
       await Future.delayed(const Duration(seconds: 2));
       final status = await _paymentService.getStatus();
+
+      // Clear the freemium gate cache so all gates open immediately.
+      FreemiumGateService().clearPremiumCache();
 
       if (mounted) {
         setState(() => _success = true);

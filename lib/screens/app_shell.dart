@@ -30,15 +30,13 @@ class AppShell extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _NavItem(
-                  icon: Icons.explore_outlined,
-                  activeIcon: Icons.explore,
+                  assetPath: 'assets/images/nav_home.png',
                   label: 'HOME',
                   active: navigationShell.currentIndex == 0,
                   onTap: () => _onTap(0),
                 ),
                 _NavItem(
-                  icon: Icons.bookmark_border,
-                  activeIcon: Icons.bookmark,
+                  assetPath: 'assets/images/nav_save.png',
                   label: 'SAVED',
                   active: navigationShell.currentIndex == 1,
                   onTap: () => _onTap(1),
@@ -59,16 +57,14 @@ class AppShell extends StatelessWidget {
                 ),
 
                 _NavItem(
-                  icon: Icons.dashboard_outlined,
-                  activeIcon: Icons.dashboard_rounded,
+                  assetPath: 'assets/images/nav_boards.png',
                   label: 'BOARDS',
                   active: navigationShell.currentIndex == 2,
                   onTap: () => _onTap(2),
                 ),
 
                 _NavItem(
-                  icon: Icons.person_outline,
-                  activeIcon: Icons.person,
+                  assetPath: 'assets/images/nav_you.png',
                   label: 'YOU',
                   active: navigationShell.currentIndex == 3,
                   onTap: () => _onTap(3),
@@ -83,15 +79,13 @@ class AppShell extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
+  final String assetPath;
   final String label;
   final bool active;
   final VoidCallback onTap;
 
   const _NavItem({
-    required this.icon,
-    required this.activeIcon,
+    required this.assetPath,
     required this.label,
     required this.active,
     required this.onTap,
@@ -107,10 +101,14 @@ class _NavItem extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              active ? activeIcon : icon,
-              size: 22,
-              color: active ? AppTheme.primary : AppTheme.textMuted,
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Image.asset(
+                assetPath,
+                fit: BoxFit.contain,
+                color: active ? AppTheme.primary : AppTheme.textMuted,
+              ),
             ),
             const SizedBox(height: 4),
             Text(

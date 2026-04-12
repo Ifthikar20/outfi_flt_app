@@ -9,6 +9,7 @@ import '../bloc/favorites/favorites_bloc.dart';
 import '../models/deal.dart';
 import '../services/api_client.dart';
 import '../services/deal_service.dart';
+import '../services/freemium_gate_service.dart';
 import '../theme/app_theme.dart';
 
 /// Light-themed product detail page.
@@ -301,6 +302,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                               context.push('/boards/editor', extra: {'addDeal': _deal});
                             },
                           ),
+                          const SizedBox(width: 8),
+                          // Alert (price drop / similar)
+                          _SecondaryButton(
+                            icon: Icons.notifications_none_rounded,
+                            label: '',
+                            onTap: () => _showAlertSheet(context),
+                          ),
                         ],
                       ),
 
@@ -489,7 +497,16 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  void _showRoutingPage(BuildContext context) {
+  void _showRoutingPage(BuildContext context) async {
+    // Freemium gate: 1 free buy redirect, then paywall.
+    final gate = FreemiumGateService();
+    if (!await gate.canBuy()) {
+      if (mounted) context.push('/premium');
+      return;
+    }
+    await gate.recordBuyClick();
+
+    if (!mounted) return;
     final storeName = _deal.source.isNotEmpty ? _deal.source : 'store';
     Navigator.of(context).push(
       PageRouteBuilder(
@@ -504,6 +521,101 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         transitionsBuilder: (_, anim, __, child) =>
             FadeTransition(opacity: anim, child: child),
         transitionDuration: const Duration(milliseconds: 200),
+      ),
+    );
+  }
+
+  /// Shows a bottom sheet with two alert options. Each option creates an
+  /// entry via the existing [DealAlertsBloc] — it appears on the Deal Alerts
+  /// screen (Profile → Deal Alerts) where the user can delete it or see
+  /// what matches triggered it.
+  void _showAlertSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.bgMain,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppTheme.border,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Set an alert',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Get notified about this product. Manage alerts from Profile → Deal Alerts.',
+                style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+              ),
+              const SizedBox(height: 18),
+              _AlertOptionTile(
+                icon: Icons.trending_down_rounded,
+                title: 'Price drop alert',
+                subtitle: _deal.price != null
+                    ? 'Notify me when this drops below \$${_deal.price!.toStringAsFixed(0)}'
+                    : 'Notify me on any price drop',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _createAlert(
+                    description: 'Price drop: ${_deal.title}',
+                    maxPrice: _deal.price,
+                  );
+                },
+              ),
+              const SizedBox(height: 10),
+              _AlertOptionTile(
+                icon: Icons.auto_awesome_outlined,
+                title: 'Similar products alert',
+                subtitle: 'Notify me when similar items appear',
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  _createAlert(
+                    description: 'Similar to: ${_deal.title}',
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _createAlert({required String description, double? maxPrice}) {
+    context.read<DealAlertsBloc>().add(
+          DealAlertCreateRequested(
+            description: description,
+            maxPrice: maxPrice,
+          ),
+        );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Alert created — see Profile → Deal Alerts'),
+        duration: const Duration(seconds: 3),
+        action: SnackBarAction(
+          label: 'View',
+          onPressed: () => context.push('/deal-alerts'),
+        ),
       ),
     );
   }
@@ -559,25 +671,56 @@ class _PriceComparisonCard extends StatelessWidget {
 
     final price = deal.price!;
 
-    // Use backend data if available, fallback to estimates
-    double low, high;
+    // Only show the meter when we have REAL data from the backend or
+    // from compared products. Never fake a ±30% estimate.
+    double? low, high;
     double position;
     String rating;
     int sellerCount;
 
     if (comparisonData != null) {
       final priceRange = comparisonData!['price_range'] as Map<String, dynamic>? ?? {};
-      low = (priceRange['low'] as num?)?.toDouble() ?? price * 0.7;
-      high = (priceRange['high'] as num?)?.toDouble() ?? price * 1.3;
-      position = (comparisonData!['position'] as num?)?.toDouble() ?? 0.5;
-      rating = comparisonData!['rating'] as String? ?? 'fair';
+      low = (priceRange['low'] as num?)?.toDouble();
+      high = (priceRange['high'] as num?)?.toDouble();
+
+      // If backend didn't return a range, compute from compared_products
+      if (low == null || high == null) {
+        final compared = comparisonData!['compared_products'] as List<dynamic>? ?? [];
+        final prices = compared
+            .map((p) => (p is Map ? (p['price'] as num?)?.toDouble() : null))
+            .whereType<double>()
+            .toList();
+        if (prices.length >= 2) {
+          prices.sort();
+          low = prices.first;
+          high = prices.last;
+        }
+      }
+
+      // If we still have no real range, hide the meter entirely
+      if (low == null || high == null) return const SizedBox.shrink();
+
+      // Compute position from actual data if backend didn't provide it
+      final backendPos = (comparisonData!['position'] as num?)?.toDouble();
+      if (backendPos != null) {
+        position = backendPos;
+      } else {
+        final range = high - low;
+        position = range > 0 ? ((price - low) / range).clamp(0.0, 1.0) : 0.5;
+      }
+
+      // Compute rating from actual position if backend didn't provide it
+      final backendRating = comparisonData!['rating'] as String?;
+      if (backendRating != null) {
+        rating = backendRating;
+      } else {
+        rating = position < 0.33 ? 'great' : (position < 0.66 ? 'fair' : 'high');
+      }
+
       sellerCount = comparisonData!['seller_count'] as int? ?? 0;
     } else {
-      low = (price * 0.7).roundToDouble();
-      high = (price * 1.3).roundToDouble();
-      position = 0.5;
-      rating = 'fair';
-      sellerCount = 0;
+      // No backend data at all — don't show a fake meter
+      return const SizedBox.shrink();
     }
 
     final String label;
@@ -715,6 +858,75 @@ class _PriceComparisonCard extends StatelessWidget {
 }
 
 // ─── Apple-style Bounce Secondary Button ───────────────
+// ─── Alert option tile (used in the "Set an alert" bottom sheet) ───
+class _AlertOptionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _AlertOptionTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppTheme.bgCard,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.border, width: 0.5),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppTheme.accent, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppTheme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right, size: 18, color: AppTheme.textMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SecondaryButton extends StatefulWidget {
   final IconData icon;
   final String label;
