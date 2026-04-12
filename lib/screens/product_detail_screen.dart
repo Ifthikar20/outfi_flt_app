@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -8,6 +9,7 @@ import '../bloc/deal_alerts/deal_alerts_bloc.dart';
 import '../bloc/favorites/favorites_bloc.dart';
 import '../models/deal.dart';
 import '../services/api_client.dart';
+import '../services/deal_alert_service.dart';
 import '../services/deal_service.dart';
 import '../services/freemium_gate_service.dart';
 import '../theme/app_theme.dart';
@@ -529,7 +531,32 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   /// entry via the existing [DealAlertsBloc] — it appears on the Deal Alerts
   /// screen (Profile → Deal Alerts) where the user can delete it or see
   /// what matches triggered it.
-  void _showAlertSheet(BuildContext context) {
+  void _showAlertSheet(BuildContext context) async {
+    // Check alert count BEFORE showing the sheet — don't let the user
+    // pick an option only to fail after.
+    try {
+      final service = DealAlertService(ApiClient());
+      final existing = await service.getAlerts();
+      final activeCount = existing.where((a) => a.isActive).length;
+
+      if (!mounted) return;
+
+      // Free limit: 5 alerts. If at limit, go straight to paywall.
+      if (activeCount >= 5) {
+        final gate = FreemiumGateService();
+        if (await gate.isPremium()) {
+          // Premium users get 100 — let them through
+        } else {
+          context.push('/premium');
+          return;
+        }
+      }
+    } catch (_) {
+      // If the check fails, proceed anyway — the create will catch it
+    }
+
+    if (!mounted) return;
+
     showModalBottomSheet(
       context: context,
       backgroundColor: AppTheme.bgMain,
@@ -564,7 +591,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                'Get notified about this product. Manage alerts from Profile → Deal Alerts.',
+                'Get notified about this product. Manage alerts from Profile → Alerts.',
                 style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
               ),
               const SizedBox(height: 18),
@@ -601,23 +628,61 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
-  void _createAlert({required String description, double? maxPrice}) {
-    context.read<DealAlertsBloc>().add(
-          DealAlertCreateRequested(
-            description: description,
-            maxPrice: maxPrice,
+  Future<void> _createAlert({required String description, double? maxPrice}) async {
+    try {
+      final service = DealAlertService(ApiClient());
+      await service.createAlert(description: description, maxPrice: maxPrice);
+
+      if (mounted) {
+        context.read<DealAlertsBloc>().add(DealAlertsFetchRequested());
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Alert created'),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'View',
+              onPressed: () => context.push('/deal-alerts'),
+            ),
           ),
         );
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Alert created — see Profile → Deal Alerts'),
-        duration: const Duration(seconds: 3),
-        action: SnackBarAction(
-          label: 'View',
-          onPressed: () => context.push('/deal-alerts'),
+      }
+    } on DioException catch (e) {
+      if (!mounted) return;
+      // Extract the actual server message from the DioException
+      final responseData = e.response?.data;
+      String serverMsg = '';
+      if (responseData is List && responseData.isNotEmpty) {
+        serverMsg = responseData.first.toString();
+      } else if (responseData is Map) {
+        serverMsg = (responseData['detail'] ?? responseData['error'] ?? '').toString();
+      } else if (responseData is String) {
+        serverMsg = responseData;
+      }
+
+      // At the free limit → paywall
+      if (serverMsg.contains('Maximum') || serverMsg.contains('alert')) {
+        context.push('/premium');
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(serverMsg.isNotEmpty ? serverMsg : 'Could not create alert'),
+          duration: const Duration(seconds: 4),
+          backgroundColor: AppTheme.error,
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not create alert. Check your connection.'),
+            duration: const Duration(seconds: 4),
+            backgroundColor: AppTheme.error,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _launchAffiliateUrl() async {

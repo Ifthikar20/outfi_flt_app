@@ -75,7 +75,9 @@ class DealAlert {
       description: json['description'] ?? '',
       searchQuery: json['search_query'] ?? '',
       referenceImage: json['reference_image'] ?? '',
-      maxPrice: (json['max_price'] as num?)?.toDouble(),
+      maxPrice: json['max_price'] != null
+          ? double.tryParse(json['max_price'].toString())
+          : null,
       status: json['status'] ?? 'active',
       isActive: json['is_active'] ?? true,
       lastCheckedAt: json['last_checked_at'] != null ? DateTime.tryParse(json['last_checked_at']) : null,

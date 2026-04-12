@@ -679,7 +679,7 @@ class _CreateAlertSheetState extends State<_CreateAlertSheet> {
           ),
           const SizedBox(height: 20),
           const Text(
-            'New Deal Alert',
+            'New Alert',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
           ),
           const SizedBox(height: 6),

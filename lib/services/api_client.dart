@@ -333,12 +333,12 @@ class ApiClient {
 
   // ─── HTTP Methods ──────────────────────────────
 
-  Future<Response> get(String path, {Map<String, dynamic>? params}) {
-    return _dio.get(path, queryParameters: params);
+  Future<Response> get(String path, {Map<String, dynamic>? params, String? fullUrl}) {
+    return _dio.get(fullUrl ?? path, queryParameters: params);
   }
 
-  Future<Response> post(String path, {dynamic data}) {
-    return _dio.post(path, data: data);
+  Future<Response> post(String path, {dynamic data, String? fullUrl}) {
+    return _dio.post(fullUrl ?? path, data: data);
   }
 
   Future<Response> patch(String path, {dynamic data}) {
