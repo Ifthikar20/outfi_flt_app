@@ -42,6 +42,7 @@ class AppTheme {
 
   // ─── Logo ──────────────────────────────────────
   static const String logoPath = 'assets/images/outfi_logo.png';
+  static const String googleLogoPath = 'assets/images/google_logo.svg';
 
   // ─── Font ──────────────────────────────────────
   static const String fontFamily = 'Avenir';

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
@@ -321,11 +322,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Image.asset(
-                          AppTheme.logoPath,
-                          height: 48,
+                        SvgPicture.asset(
+                          AppTheme.googleLogoPath,
+                          height: 40,
                           fit: BoxFit.contain,
-                          alignment: Alignment.centerLeft,
                         ),
                         const Spacer(),
                         Padding(

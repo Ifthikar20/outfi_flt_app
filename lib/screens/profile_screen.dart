@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../bloc/auth/auth_bloc.dart';
@@ -26,10 +27,10 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Logo
-                  Image.asset(
-                    AppTheme.logoPath,
-                    height: 32,
+                  // Google Logo
+                  SvgPicture.asset(
+                    AppTheme.googleLogoPath,
+                    height: 36,
                     fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 20),
@@ -196,7 +197,7 @@ class ProfileScreen extends StatelessWidget {
 
                   const SizedBox(height: 20),
                   Text(
-                    'Outfi v1.0.0',
+                    'v1.0.0',
                     style: TextStyle(
                       fontSize: 12,
                       color: AppTheme.textMuted,

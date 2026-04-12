@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_client.dart';
@@ -392,10 +393,10 @@ class _BoardCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          // Outfi logo watermark
-                          Image.asset(
-                            AppTheme.logoPath,
-                            height: 20,
+                          // Google logo watermark
+                          SvgPicture.asset(
+                            AppTheme.googleLogoPath,
+                            height: 18,
                             fit: BoxFit.contain,
                           ),
                           const Spacer(),

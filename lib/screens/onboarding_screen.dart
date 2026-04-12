@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../theme/app_theme.dart';
 
@@ -43,9 +44,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
               padding: const EdgeInsets.fromLTRB(20, 12, 4, 0),
               child: Row(
                 children: [
-                  Image.asset(
-                    AppTheme.logoPath,
-                    height: 28,
+                  SvgPicture.asset(
+                    AppTheme.googleLogoPath,
+                    height: 30,
                     fit: BoxFit.contain,
                   ),
                   const Spacer(),

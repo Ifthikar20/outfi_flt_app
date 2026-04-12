@@ -2,11 +2,13 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/watercolor_background.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -55,24 +57,21 @@ class _LoginScreenState extends State<LoginScreen> {
         body: SingleChildScrollView(
           child: Column(
             children: [
-              // ─── Top half: Linen texture with blur fade + logo ───
+              // ─── Top half: Watercolor animated background + logo ───
               SizedBox(
                 height: MediaQuery.of(context).size.height * 0.55,
                 width: double.infinity,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Linen texture background
-                    Image.asset(
-                      'assets/images/login_bg.png',
-                      fit: BoxFit.cover,
-                    ),
+                    // Animated watercolor background
+                    const WatercolorBackground(),
                     // Seamless fade into bgMain — no visible edge
                     Positioned(
                       bottom: -1,
                       left: 0,
                       right: 0,
-                      height: 300,
+                      height: 200,
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -80,26 +79,23 @@ class _LoginScreenState extends State<LoginScreen> {
                             end: Alignment.bottomCenter,
                             colors: [
                               AppTheme.bgMain.withValues(alpha: 0.0),
-                              AppTheme.bgMain.withValues(alpha: 0.05),
-                              AppTheme.bgMain.withValues(alpha: 0.15),
-                              AppTheme.bgMain.withValues(alpha: 0.4),
+                              AppTheme.bgMain.withValues(alpha: 0.3),
                               AppTheme.bgMain.withValues(alpha: 0.7),
-                              AppTheme.bgMain.withValues(alpha: 0.9),
                               AppTheme.bgMain,
                             ],
-                            stops: const [0.0, 0.1, 0.25, 0.45, 0.65, 0.85, 1.0],
+                            stops: const [0.0, 0.35, 0.7, 1.0],
                           ),
                         ),
                       ),
                     ),
-                    // Outfi logo centered
+                    // Google logo centered
                     Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Image.asset(
-                            AppTheme.logoPath,
-                            height: 100,
+                          SvgPicture.asset(
+                            AppTheme.googleLogoPath,
+                            height: 80,
                             fit: BoxFit.contain,
                           ),
                           const SizedBox(height: 8),
@@ -174,11 +170,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        // Google "G" logo using custom paint
-                        SizedBox(
+                        // Google "G" logo — official SVG asset
+                        SvgPicture.asset(
+                          'assets/images/google_logo.svg',
                           width: 20,
                           height: 20,
-                          child: CustomPaint(painter: _GoogleLogoPainter()),
                         ),
                         const SizedBox(width: 12),
                         const Text(
@@ -398,83 +394,3 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 }
 
-/// Paints the official Google "G" logo with correct brand colors.
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double w = size.width;
-    final double h = size.height;
-    final double cx = w / 2;
-    final double cy = h / 2;
-    final double r = w * 0.45;
-    final double strokeW = w * 0.18;
-
-    // Blue arc (top-right quadrant extending down)
-    final bluePaint = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      -0.9, // ~-50 degrees
-      1.9,  // sweep ~110 degrees
-      false,
-      bluePaint,
-    );
-
-    // Green arc (bottom-right)
-    final greenPaint = Paint()
-      ..color = const Color(0xFF34A853)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      1.0,
-      1.1,
-      false,
-      greenPaint,
-    );
-
-    // Yellow arc (bottom-left)
-    final yellowPaint = Paint()
-      ..color = const Color(0xFFFBBC05)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      2.1,
-      1.0,
-      false,
-      yellowPaint,
-    );
-
-    // Red arc (top-left)
-    final redPaint = Paint()
-      ..color = const Color(0xFFEA4335)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeW
-      ..strokeCap = StrokeCap.butt;
-    canvas.drawArc(
-      Rect.fromCircle(center: Offset(cx, cy), radius: r),
-      3.1,
-      1.35,
-      false,
-      redPaint,
-    );
-
-    // Horizontal bar (the dash in the G)
-    final barPaint = Paint()
-      ..color = const Color(0xFF4285F4)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-      Rect.fromLTRB(cx, cy - strokeW / 2, cx + r + strokeW / 2, cy + strokeW / 2),
-      barPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}

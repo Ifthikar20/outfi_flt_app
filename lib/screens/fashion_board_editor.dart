@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -778,15 +779,15 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
                     },
                   ),
 
-                // Outfi watermark (captured in share image)
+                // Google watermark (captured in share image)
                 Positioned(
                   bottom: 10,
                   right: 12,
                   child: Opacity(
                     opacity: 0.6,
-                    child: Image.asset(
-                      AppTheme.logoPath,
-                      height: 28,
+                    child: SvgPicture.asset(
+                      AppTheme.googleLogoPath,
+                      height: 24,
                       fit: BoxFit.contain,
                     ),
                   ),
