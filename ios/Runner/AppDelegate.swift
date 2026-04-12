@@ -78,7 +78,11 @@ import UserNotifications
     withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
   ) {
     // Show the notification even when the app is in the foreground
-    completionHandler([.banner, .badge, .sound])
+    if #available(iOS 14.0, *) {
+      completionHandler([.banner, .badge, .sound])
+    } else {
+      completionHandler([.alert, .badge, .sound])
+    }
   }
 
   // MARK: - Notification Tap
