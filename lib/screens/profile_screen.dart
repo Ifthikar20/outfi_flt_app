@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
@@ -27,10 +27,10 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Google Logo
-                  SvgPicture.asset(
-                    AppTheme.googleLogoPath,
-                    height: 36,
+                  // Outfi Logo
+                  Image.asset(
+                    AppTheme.logoPath,
+                    height: 72,
                     fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 20),
@@ -196,13 +196,7 @@ class ProfileScreen extends StatelessWidget {
                   ),
 
                   const SizedBox(height: 20),
-                  Text(
-                    'v1.0.0',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textMuted,
-                    ),
-                  ),
+                  const _VersionLabel(),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -355,6 +349,46 @@ Version 1.0.0
 © 2026 Outfi. All rights reserved.
 support@outfi.ai
 ''';
+
+/// Displays "Outfi v[name] ([build])" pulled from the native app bundle.
+/// Fetches once in initState, so it's cheap to rebuild.
+class _VersionLabel extends StatefulWidget {
+  const _VersionLabel();
+
+  @override
+  State<_VersionLabel> createState() => _VersionLabelState();
+}
+
+class _VersionLabelState extends State<_VersionLabel> {
+  String? _label;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      if (!mounted) return;
+      setState(() => _label = 'Outfi v${info.version} (${info.buildNumber})');
+    } catch (_) {
+      // If the native plugin fails for any reason, show nothing rather than crash.
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      _label ?? '',
+      style: const TextStyle(
+        fontSize: 12,
+        color: AppTheme.textMuted,
+      ),
+    );
+  }
+}
 
 class _SettingsRow extends StatelessWidget {
   final IconData icon;

@@ -1,7 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
@@ -243,9 +242,9 @@ class _FashionBoardShareScreenState extends State<FashionBoardShareScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              SvgPicture.asset(
-                AppTheme.googleLogoPath,
-                height: 20,
+              Image.asset(
+                AppTheme.logoPath,
+                height: 36,
                 fit: BoxFit.contain,
               ),
             ],

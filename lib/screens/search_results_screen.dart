@@ -110,25 +110,31 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(color: AppTheme.border, width: 0.5),
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        onSubmitted: _search,
-                        style: const TextStyle(fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search deals...',
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 14, vertical: 10),
-                          border: InputBorder.none,
-                          suffixIcon: _searchController.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.close, size: 16),
-                                  onPressed: () {
-                                    _searchController.clear();
-                                    setState(() {});
-                                  },
-                                )
-                              : null,
-                        ),
+                      // ValueListenableBuilder scopes rebuilds to JUST the
+                      // text field when the user types/clears, instead of
+                      // repainting the entire results grid below on every
+                      // keystroke. Critical for avoiding the search flicker.
+                      child: ValueListenableBuilder<TextEditingValue>(
+                        valueListenable: _searchController,
+                        builder: (context, value, _) {
+                          return TextField(
+                            controller: _searchController,
+                            onSubmitted: _search,
+                            style: const TextStyle(fontSize: 14),
+                            decoration: InputDecoration(
+                              hintText: 'Search deals...',
+                              contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              border: InputBorder.none,
+                              suffixIcon: value.text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.close, size: 16),
+                                      onPressed: _searchController.clear,
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -320,16 +326,14 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
 
             // ─── Results ────────────────────────────
             Expanded(
-              child: BlocConsumer<DealsBloc, DealsState>(
-                listener: (context, state) {
-                  if (state is DealsError) {
-                    Future.delayed(const Duration(seconds: 3), () {
-                      if (mounted) _search(_searchController.text);
-                    });
-                  }
-                },
+              // BlocBuilder (not BlocConsumer): the old listener scheduled an
+              // automatic 3-second retry on DealsError, which created an
+              // infinite loading→error→loading loop — the primary source of
+              // the search flicker. Retries are now user-driven via the
+              // Retry button in the error state below.
+              child: BlocBuilder<DealsBloc, DealsState>(
                 builder: (context, state) {
-                  if (state is DealsLoading || state is DealsError) {
+                  if (state is DealsLoading) {
                     return GridView.builder(
                       padding: const EdgeInsets.all(16),
                       gridDelegate:
@@ -341,6 +345,62 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                       ),
                       itemCount: 6,
                       itemBuilder: (_, __) => const LoadingShimmer(),
+                    );
+                  }
+
+                  if (state is DealsError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 72,
+                              height: 72,
+                              decoration: BoxDecoration(
+                                color: AppTheme.bgInput,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(
+                                Icons.cloud_off_rounded,
+                                size: 32,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              'Couldn\'t load results',
+                              style: Theme.of(context).textTheme.titleMedium,
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Check your connection and try again.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            OutlinedButton.icon(
+                              onPressed: () => _search(_searchController.text),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: const Text('Retry'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppTheme.textPrimary,
+                                side: const BorderSide(color: AppTheme.border),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                      AppTheme.radiusFull),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24, vertical: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   }
 

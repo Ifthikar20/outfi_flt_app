@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
@@ -99,10 +98,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 24),
 
-                    // Logo — Google
+                    // Logo — Outfi
                     Center(
-                      child: SvgPicture.asset(
-                        AppTheme.googleLogoPath,
+                      child: Image.asset(
+                        AppTheme.logoPath,
                         height: 80,
                         fit: BoxFit.contain,
                       ),

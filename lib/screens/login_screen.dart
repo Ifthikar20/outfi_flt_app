@@ -88,17 +88,17 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                     ),
-                    // Google logo centered
+                    // Outfi logo centered
                     Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          SvgPicture.asset(
-                            AppTheme.googleLogoPath,
-                            height: 80,
+                          Image.asset(
+                            AppTheme.logoPath,
+                            height: 180,
                             fit: BoxFit.contain,
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 4),
                           Text(
                             'Style. Curated.',
                             style: TextStyle(

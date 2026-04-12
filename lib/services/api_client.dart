@@ -11,6 +11,13 @@ import 'cache_interceptor.dart';
 import 'device_info_service.dart';
 
 class ApiClient {
+  // Singleton — every `ApiClient()` call returns the same instance so all
+  // screens share one CacheInterceptor. Without this, each screen has its
+  // own cache and invalidations don't propagate (e.g. saving a fashion
+  // board would leave the board list screen showing a stale result).
+  static final ApiClient _instance = ApiClient._internal();
+  factory ApiClient() => _instance;
+
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final CacheInterceptor _cacheInterceptor = CacheInterceptor();
@@ -19,7 +26,7 @@ class ApiClient {
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
 
-  ApiClient() {
+  ApiClient._internal() {
     _dio = Dio(BaseOptions(
       baseUrl: ApiConfig.baseUrl,
       connectTimeout: const Duration(seconds: 10),

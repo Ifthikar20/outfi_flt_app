@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import '../services/api_client.dart';
@@ -393,10 +392,10 @@ class _BoardCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          // Google logo watermark
-                          SvgPicture.asset(
-                            AppTheme.googleLogoPath,
-                            height: 18,
+                          // Outfi logo watermark
+                          Image.asset(
+                            AppTheme.logoPath,
+                            height: 28,
                             fit: BoxFit.contain,
                           ),
                           const Spacer(),
@@ -520,10 +519,19 @@ class _MiniThumbnail extends StatelessWidget {
             final rotation = (item['rotation'] as num?)?.toDouble() ?? 0;
 
             Widget child;
-            if (type == 'product' && content.startsWith('http')) {
+            if (type == 'product') {
+              // Prefer the persisted bg-removed URL if the editor uploaded one;
+              // otherwise fall back to the original product image.
+              final bgUrl = (item['metadata'] as Map?)?['bgRemovedUrl']
+                      ?.toString() ??
+                  '';
+              final url = bgUrl.isNotEmpty ? bgUrl : content;
+              if (!url.startsWith('http')) return const SizedBox.shrink();
               child = CachedNetworkImage(
-                imageUrl: content,
-                fit: BoxFit.cover,
+                imageUrl: url,
+                // `contain` preserves transparent areas from bg-removed PNGs;
+                // `cover` would crop and reintroduce the wrong framing.
+                fit: BoxFit.contain,
                 memCacheWidth: 300,
                 fadeInDuration: const Duration(milliseconds: 150),
                 errorWidget: (_, __, ___) => const SizedBox.shrink(),

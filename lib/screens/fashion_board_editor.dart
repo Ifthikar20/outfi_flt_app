@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
@@ -472,6 +471,23 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
           item.metadata!['bgRemoved'] = true;
           item.metadata!['bgRemovedBytes'] = resultBytes;
         });
+        // Upload the bg-removed PNG so the state survives save/reload.
+        // Without this, the stripped bytes vanish on save and the product
+        // "snaps back" to its original background on the fashion board.
+        try {
+          final service = StoryboardService(_apiClient);
+          final url = await service.uploadImage(
+            resultBytes,
+            filename: 'bg_removed.png',
+          );
+          if (mounted && url.isNotEmpty) {
+            setState(() {
+              item.metadata!['bgRemovedUrl'] = url;
+            });
+          }
+        } catch (e) {
+          debugPrint('BG-removed upload failed: $e');
+        }
       }
     } catch (e) {
       debugPrint('BG removal error: $e');
@@ -532,7 +548,13 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
         if (uri != null && uri.path.isNotEmpty) {
           snapshotPath = uri.path.startsWith('/') ? uri.path.substring(1) : uri.path;
         }
-      } catch (_) {}
+      } catch (e) {
+        // Surface the failure — without this the board silently falls back
+        // to a structured replay that loses the bg-removed state.
+        debugPrint('Snapshot upload failed: $e');
+      }
+    } else {
+      debugPrint('Snapshot capture returned null bytes — canvas not ready?');
     }
 
     final canvasSize = _getCanvasSize();
@@ -779,15 +801,15 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
                     },
                   ),
 
-                // Google watermark (captured in share image)
+                // Outfi watermark (captured in share image)
                 Positioned(
                   bottom: 10,
                   right: 12,
                   child: Opacity(
                     opacity: 0.6,
-                    child: SvgPicture.asset(
-                      AppTheme.googleLogoPath,
-                      height: 24,
+                    child: Image.asset(
+                      AppTheme.logoPath,
+                      height: 40,
                       fit: BoxFit.contain,
                     ),
                   ),

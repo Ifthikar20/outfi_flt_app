@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
@@ -83,15 +82,15 @@ class _SplashScreenState extends State<SplashScreen>
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Google Logo
+                    // Outfi Logo
                     Opacity(
                       opacity: _fadeIn.value,
                       child: Transform.scale(
                         scale: _scale.value,
-                        child: SvgPicture.asset(
-                          AppTheme.googleLogoPath,
-                          width: 100,
-                          height: 100,
+                        child: Image.asset(
+                          AppTheme.logoPath,
+                          width: 200,
+                          height: 200,
                           fit: BoxFit.contain,
                         ),
                       ),

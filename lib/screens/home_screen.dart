@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
@@ -99,42 +98,12 @@ class _HomeScreenState extends State<HomeScreen> {
               'Set your location',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
             ),
+            const SizedBox(height: 6),
+            Text(
+              'Enter a zip code to see deals nearby.',
+              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
+            ),
             const SizedBox(height: 16),
-
-            // Use GPS button
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: OutlinedButton.icon(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await _loadLocation();
-                },
-                icon: const Icon(Icons.my_location_rounded, size: 18),
-                label: const Text('Use current location'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppTheme.textPrimary,
-                  side: const BorderSide(color: AppTheme.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Or enter zip
-            Row(
-              children: [
-                Expanded(child: Divider(color: AppTheme.border)),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  child: Text('or enter zip code', style: TextStyle(fontSize: 12, color: AppTheme.textMuted)),
-                ),
-                Expanded(child: Divider(color: AppTheme.border)),
-              ],
-            ),
-            const SizedBox(height: 14),
             Row(
               children: [
                 Expanded(
@@ -322,9 +291,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        SvgPicture.asset(
-                          AppTheme.googleLogoPath,
-                          height: 40,
+                        Image.asset(
+                          AppTheme.logoPath,
+                          height: 80,
                           fit: BoxFit.contain,
                         ),
                         const Spacer(),
@@ -661,38 +630,6 @@ class _BrandCard extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 letterSpacing: 0.5,
-              ),
-            ),
-          ),
-
-          // Like count pill (top-right)
-          Positioned(
-            top: 8,
-            right: 8,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    brand.isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: brand.isLiked ? Colors.redAccent : Colors.white70,
-                    size: 14,
-                  ),
-                  const SizedBox(width: 3),
-                  Text(
-                    '${brand.likesCount}',
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
               ),
             ),
           ),
