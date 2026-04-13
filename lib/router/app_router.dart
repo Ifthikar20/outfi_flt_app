@@ -23,6 +23,7 @@ import '../screens/fashion_timeline_screen.dart';
 import '../screens/app_shell.dart';
 import '../models/deal.dart';
 import '../models/storyboard.dart';
+import '../services/api_client.dart';
 
 // Navigation keys per tab – keeps pages alive when switching tabs
 final _homeNavKey = GlobalKey<NavigatorState>(debugLabel: 'home');
@@ -30,9 +31,20 @@ final _favNavKey = GlobalKey<NavigatorState>(debugLabel: 'favorites');
 final _boardsNavKey = GlobalKey<NavigatorState>(debugLabel: 'boards');
 final _profileNavKey = GlobalKey<NavigatorState>(debugLabel: 'profile');
 
+/// Routes that don't require authentication.
+const _publicRoutes = {'/splash', '/onboarding', '/login', '/register'};
+
 final GoRouter appRouter = GoRouter(
   initialLocation: '/splash',
+  redirect: (context, state) async {
+    final path = state.matchedLocation;
+    if (_publicRoutes.contains(path)) return null;
+    final hasTokens = await ApiClient().hasTokens();
+    if (!hasTokens) return '/login';
+    return null;
+  },
   routes: [
+
     GoRoute(
       path: '/splash',
       builder: (context, state) => const SplashScreen(),

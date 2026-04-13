@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import '../config/api_config.dart';
 import 'api_client.dart';
 
 /// Handles APNs push notifications — no Firebase, direct Apple integration.
@@ -70,7 +71,7 @@ class PushNotificationService {
         'platform': 'ios',
         'device_id': ios.identifierForVendor ?? 'unknown',
         'device_name': ios.utsname.machine,
-        'app_version': '1.0.1',
+        'app_version': ApiConfig.appVersion,
         'os_version': ios.systemVersion,
       });
       debugPrint('Device token registered with backend');

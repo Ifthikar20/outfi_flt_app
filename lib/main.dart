@@ -6,14 +6,15 @@ import 'bloc/auth/auth_bloc.dart';
 import 'bloc/deals/deals_bloc.dart';
 import 'bloc/deal_alerts/deal_alerts_bloc.dart';
 import 'bloc/favorites/favorites_bloc.dart';
+import 'bloc/image_search/image_search_bloc.dart';
 
+import 'config/api_config.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/deal_service.dart';
 import 'services/deal_alert_service.dart';
 import 'services/favorites_service.dart';
 import 'services/featured_service.dart';
-import 'services/push_notification_service.dart';
 
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
@@ -21,10 +22,11 @@ import 'theme/app_theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Stripe for Apple Pay
-  Stripe.publishableKey =
-      'pk_test_51TILuq3I87vPzCFd7eOqVXJoGagewgzN2Vr4SiEDlNfZeKvCoeUqa4h1O5ekXXEvTPj4TY8ENMzM792qC4li9YMW00O0y5aMc6';
-  Stripe.merchantIdentifier = 'merchant.ai.outfi.app';
+  // Initialize Stripe from environment config (not hardcoded)
+  if (ApiConfig.stripePublishableKey.isNotEmpty) {
+    Stripe.publishableKey = ApiConfig.stripePublishableKey;
+    Stripe.merchantIdentifier = ApiConfig.stripeMerchantId;
+  }
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
@@ -36,8 +38,10 @@ void main() {
   // Create shared API client
   final apiClient = ApiClient();
 
-  // Initialize push notifications (requests permission + registers APNs token)
-  PushNotificationService().init();
+  // NOTE: PushNotificationService.init() is called AFTER auth succeeds
+  // (see splash_screen.dart). Calling it here would fail because
+  // there are no auth tokens yet and the device registration POST
+  // would silently lose the APNs token.
 
   runApp(OutfiApp(apiClient: apiClient));
 }
@@ -60,6 +64,11 @@ class OutfiApp extends StatelessWidget {
           ),
           BlocProvider<DealsBloc>(
             create: (_) => DealsBloc(
+              dealService: DealService(apiClient),
+            ),
+          ),
+          BlocProvider<ImageSearchBloc>(
+            create: (_) => ImageSearchBloc(
               dealService: DealService(apiClient),
             ),
           ),

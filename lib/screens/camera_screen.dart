@@ -1,12 +1,12 @@
 import 'dart:io';
+import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
-import '../bloc/deals/deals_bloc.dart';
-import '../bloc/deals/deals_event.dart';
+import '../bloc/image_search/image_search_bloc.dart';
 import '../models/deal.dart';
 import '../theme/app_theme.dart';
 import '../services/freemium_gate_service.dart';
@@ -32,6 +32,7 @@ class _CameraScreenState extends State<CameraScreen>
   final _locationService = LocationService();
   double? _userLat;
   double? _userLng;
+  int _retryCount = 0;
 
   @override
   void initState() {
@@ -141,8 +142,8 @@ class _CameraScreenState extends State<CameraScreen>
         }
         await gate.recordImageSearch();
         if (!mounted) return;
-        context.read<DealsBloc>().add(
-              DealsImageSearchRequested(imagePath: file.path, latitude: _userLat, longitude: _userLng),
+        context.read<ImageSearchBloc>().add(
+              ImageSearchRequested(imagePath: file.path, latitude: _userLat, longitude: _userLng),
             );
       }
     } catch (e) {
@@ -178,8 +179,8 @@ class _CameraScreenState extends State<CameraScreen>
         }
         await gate.recordImageSearch();
         if (!mounted) return;
-        context.read<DealsBloc>().add(
-              DealsImageSearchRequested(imagePath: photo.path, latitude: _userLat, longitude: _userLng),
+        context.read<ImageSearchBloc>().add(
+              ImageSearchRequested(imagePath: photo.path, latitude: _userLat, longitude: _userLng),
             );
       }
     } catch (e) {
@@ -561,9 +562,9 @@ class _CameraScreenState extends State<CameraScreen>
                     ),
                   ),
                   const Spacer(),
-                  BlocBuilder<DealsBloc, DealsState>(
+                  BlocBuilder<ImageSearchBloc, ImageSearchState>(
                     builder: (context, state) {
-                      if (state is DealsLoaded) {
+                      if (state is ImageSearchLoaded) {
                         return Text(
                           '${state.result.total} found',
                           style: TextStyle(
@@ -581,20 +582,28 @@ class _CameraScreenState extends State<CameraScreen>
           ),
 
           // Results grid
-          BlocConsumer<DealsBloc, DealsState>(
+          BlocConsumer<ImageSearchBloc, ImageSearchState>(
             listener: (context, state) {
-              if (state is DealsError && _capturedImagePath != null) {
-                Future.delayed(const Duration(seconds: 3), () {
-                  if (mounted) {
-                    context.read<DealsBloc>().add(
-                      DealsImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
-                    );
-                  }
-                });
+              if (state is ImageSearchError && _capturedImagePath != null) {
+                // Exponential backoff: 3s, 6s, 12s — max 3 retries
+                _retryCount++;
+                if (_retryCount <= 3) {
+                  final delay = Duration(seconds: 3 * (1 << (_retryCount - 1)));
+                  Future.delayed(delay, () {
+                    if (mounted) {
+                      context.read<ImageSearchBloc>().add(
+                        ImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
+                      );
+                    }
+                  });
+                }
+              }
+              if (state is ImageSearchLoaded) {
+                _retryCount = 0; // reset on success
               }
             },
             builder: (context, state) {
-              if (state is DealsLoading) {
+              if (state is ImageSearchLoading) {
                 return SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(48),
@@ -621,31 +630,64 @@ class _CameraScreenState extends State<CameraScreen>
                 );
               }
 
-              if (state is DealsError) {
-                return SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.62,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
+              if (state is ImageSearchError) {
+                // Show shimmer while retrying, or error msg after max retries
+                if (_retryCount <= 3) {
+                  return SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    sliver: SliverGrid(
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.62,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (_, __) => const LoadingShimmer(),
+                        childCount: 4,
+                      ),
                     ),
-                    delegate: SliverChildBuilderDelegate(
-                      (_, __) => const LoadingShimmer(),
-                      childCount: 4,
+                  );
+                }
+                return SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.all(48),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.wifi_off_rounded,
+                            size: 48, color: AppTheme.textMuted),
+                        const SizedBox(height: 16),
+                        Text('Couldn\'t connect',
+                            style: Theme.of(context).textTheme.titleSmall),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Check your connection and try again',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                          onPressed: () {
+                            _retryCount = 0;
+                            context.read<ImageSearchBloc>().add(
+                              ImageSearchRequested(imagePath: _capturedImagePath!, latitude: _userLat, longitude: _userLng),
+                            );
+                          },
+                          child: const Text('Retry'),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }
 
-              if (state is DealsLoaded && state.result.deals.isNotEmpty) {
+              if (state is ImageSearchLoaded && state.result.deals.isNotEmpty) {
+                final cols = MediaQuery.of(context).size.width >= 600 ? 3 : 2;
                 return SliverPadding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   sliver: SliverGrid(
                     gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
+                        SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: cols,
                       childAspectRatio: 0.62,
                       crossAxisSpacing: 12,
                       mainAxisSpacing: 12,
@@ -658,7 +700,7 @@ class _CameraScreenState extends State<CameraScreen>
                 );
               }
 
-              if (state is DealsLoaded && state.result.deals.isEmpty) {
+              if (state is ImageSearchLoaded && state.result.deals.isEmpty) {
                 return SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.all(48),

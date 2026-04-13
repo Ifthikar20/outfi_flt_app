@@ -34,20 +34,9 @@ class DealsLoadMoreRequested extends DealsEvent {
   const DealsLoadMoreRequested();
 }
 
-class DealsImageSearchRequested extends DealsEvent {
-  final String imagePath;
-  final double? latitude;
-  final double? longitude;
-
-  const DealsImageSearchRequested({
-    required this.imagePath,
-    this.latitude,
-    this.longitude,
-  });
-
-  @override
-  List<Object?> get props => [imagePath, latitude, longitude];
-}
+// NOTE: DealsImageSearchRequested has been moved to
+// bloc/image_search/image_search_event.dart to prevent
+// image search results from overwriting trending deals state.
 
 // ─── Deals States ────────────────────────────────
 abstract class DealsState extends Equatable {

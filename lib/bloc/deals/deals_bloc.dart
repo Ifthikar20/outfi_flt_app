@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../models/deal.dart';
 import '../../services/deal_service.dart';
@@ -7,6 +6,10 @@ import 'deals_event.dart';
 // Re-export event and state for convenience
 export 'deals_event.dart';
 
+/// BLoC for the deals feed (trending + text search).
+///
+/// Image search has been moved to [ImageSearchBloc] to prevent
+/// image results from overwriting the trending deals state.
 class DealsBloc extends Bloc<DealsEvent, DealsState> {
   final DealService _dealService;
 
@@ -25,7 +28,6 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
     on<DealsFetchTrending>(_onFetchTrending);
     on<DealsSearchRequested>(_onSearchRequested);
     on<DealsLoadMoreRequested>(_onLoadMore);
-    on<DealsImageSearchRequested>(_onImageSearch);
   }
 
   Future<void> _onFetchTrending(
@@ -117,23 +119,6 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
     } catch (e) {
       // On error, stop loading but keep existing results
       emit(currentState.copyWith(isLoadingMore: false));
-    }
-  }
-
-  Future<void> _onImageSearch(
-    DealsImageSearchRequested event,
-    Emitter<DealsState> emit,
-  ) async {
-    emit(DealsLoading());
-    try {
-      final result = await _dealService.imageSearch(
-        File(event.imagePath),
-        latitude: event.latitude,
-        longitude: event.longitude,
-      );
-      emit(DealsLoaded(result));
-    } catch (e) {
-      emit(DealsError(e.toString()));
     }
   }
 }

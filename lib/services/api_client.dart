@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
@@ -21,7 +22,10 @@ class ApiClient {
   late final Dio _dio;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   final CacheInterceptor _cacheInterceptor = CacheInterceptor();
-  bool _isRefreshing = false;
+
+  /// Completer-based refresh queue: all concurrent 401s wait on the
+  /// same future instead of each triggering their own refresh.
+  Completer<bool>? _refreshCompleter;
 
   static const _accessTokenKey = 'access_token';
   static const _refreshTokenKey = 'refresh_token';
@@ -150,20 +154,22 @@ class ApiClient {
     // ── Detailed request log ──
     _requestTimers[options.path] = DateTime.now();
 
-    debugPrint('');
-    debugPrint('┌─── REQUEST ──────────────────────────────────');
-    debugPrint('│ ${options.method} ${options.uri}');
-    debugPrint('│ Auth: ${token != null && token.isNotEmpty ? "Bearer ${token.substring(0, token.length.clamp(0, 20))}..." : "NONE (${token?.length ?? 0} chars)"}');
-    debugPrint('│ Host: ${options.uri.host}');
-    if (options.data != null) {
-      final dataStr = options.data.toString();
-      if (dataStr.length > 500) {
-        debugPrint('│ Body: ${dataStr.substring(0, 500)}...(${dataStr.length} chars)');
-      } else {
-        debugPrint('│ Body: $dataStr');
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('┌─── REQUEST ──────────────────────────────────');
+      debugPrint('│ ${options.method} ${options.uri}');
+      debugPrint('│ Auth: ${token != null && token.isNotEmpty ? "Bearer ${token.substring(0, token.length.clamp(0, 20))}..." : "NONE"}');
+      debugPrint('│ Host: ${options.uri.host}');
+      if (options.data != null) {
+        final dataStr = options.data.toString();
+        if (dataStr.length > 500) {
+          debugPrint('│ Body: ${dataStr.substring(0, 500)}...(${dataStr.length} chars)');
+        } else {
+          debugPrint('│ Body: $dataStr');
+        }
       }
+      debugPrint('└──────────────────────────────────────────────');
     }
-    debugPrint('└──────────────────────────────────────────────');
 
     handler.next(options);
   }
@@ -186,24 +192,25 @@ class ApiClient {
     }
 
     // ── Detailed response log ──
-    debugPrint('');
-    debugPrint('┌─── RESPONSE ${response.statusCode} ─── ${elapsed}ms ──────');
-    debugPrint('│ ${response.requestOptions.method} ${response.requestOptions.path}');
-    if (response.data is Map) {
-      final map = response.data as Map;
-      debugPrint('│ Keys: ${map.keys.toList()}');
-      // Show key values (truncated)
-      for (final key in map.keys.take(8)) {
-        final val = map[key].toString();
-        debugPrint('│   $key: ${val.length > 100 ? "${val.substring(0, 100)}..." : val}');
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('┌─── RESPONSE ${response.statusCode} ─── ${elapsed}ms ──────');
+      debugPrint('│ ${response.requestOptions.method} ${response.requestOptions.path}');
+      if (response.data is Map) {
+        final map = response.data as Map;
+        debugPrint('│ Keys: ${map.keys.toList()}');
+        for (final key in map.keys.take(8)) {
+          final val = map[key].toString();
+          debugPrint('│   $key: ${val.length > 100 ? "${val.substring(0, 100)}..." : val}');
+        }
+        if (map.keys.length > 8) debugPrint('│   ...and ${map.keys.length - 8} more keys');
+      } else if (response.data is List) {
+        debugPrint('│ Array: ${(response.data as List).length} items');
+      } else {
+        debugPrint('│ Data: ${response.data.toString().substring(0, 200.clamp(0, response.data.toString().length))}');
       }
-      if (map.keys.length > 8) debugPrint('│   ...and ${map.keys.length - 8} more keys');
-    } else if (response.data is List) {
-      debugPrint('│ Array: ${(response.data as List).length} items');
-    } else {
-      debugPrint('│ Data: ${response.data.toString().substring(0, 200.clamp(0, response.data.toString().length))}');
+      debugPrint('└──────────────────────────────────────────────');
     }
-    debugPrint('└──────────────────────────────────────────────');
 
     handler.next(response);
   }
@@ -223,29 +230,51 @@ class ApiClient {
     }
 
     // ── Detailed error log ──
-    debugPrint('');
-    debugPrint('┌─── ERROR ${error.response?.statusCode ?? "NO_RESPONSE"} ─── ${elapsed}ms ──');
-    debugPrint('│ ${error.requestOptions.method} ${error.requestOptions.uri}');
-    debugPrint('│ Type: ${error.type}');
-    debugPrint('│ Message: ${error.message}');
-    if (error.response?.data != null) {
-      debugPrint('│ Server response: ${error.response!.data}');
+    if (kDebugMode) {
+      debugPrint('');
+      debugPrint('┌─── ERROR ${error.response?.statusCode ?? "NO_RESPONSE"} ─── ${elapsed}ms ──');
+      debugPrint('│ ${error.requestOptions.method} ${error.requestOptions.uri}');
+      debugPrint('│ Type: ${error.type}');
+      debugPrint('│ Message: ${error.message}');
+      if (error.response?.data != null) {
+        debugPrint('│ Server response: ${error.response!.data}');
+      }
+      if (error.error != null) {
+        debugPrint('│ Inner error: ${error.error}');
+      }
+      debugPrint('└──────────────────────────────────────────────');
     }
-    if (error.error != null) {
-      debugPrint('│ Inner error: ${error.error}');
-    }
-    debugPrint('└──────────────────────────────────────────────');
 
-    // Only attempt refresh for 401 on non-auth endpoints (guard against loop)
+    // Only attempt refresh for 401 on non-auth endpoints
     if (error.response?.statusCode == 401 &&
-        !error.requestOptions.path.contains('/auth/') &&
-        !_isRefreshing) {
-      debugPrint('🔄 Token expired — attempting refresh...');
-      _isRefreshing = true;
+        !error.requestOptions.path.contains('/auth/')) {
+      // If a refresh is already in progress, wait for its result
+      if (_refreshCompleter != null) {
+        final refreshed = await _refreshCompleter!.future;
+        if (refreshed) {
+          final opts = error.requestOptions;
+          final token = await _storage.read(key: _accessTokenKey);
+          opts.headers['Authorization'] = 'Bearer $token';
+          try {
+            final response = await _dio.fetch(opts);
+            return handler.resolve(response);
+          } catch (_) {
+            return handler.next(error);
+          }
+        }
+        return handler.next(error);
+      }
+
+      // First 401 — initiate the refresh
+      _refreshCompleter = Completer<bool>();
+      if (kDebugMode) debugPrint('🔄 Token expired — attempting refresh...');
       try {
         final refreshed = await _refreshToken();
+        _refreshCompleter!.complete(refreshed);
+        _refreshCompleter = null;
+
         if (refreshed) {
-          debugPrint('🔄 Token refreshed — retrying request');
+          if (kDebugMode) debugPrint('🔄 Token refreshed — retrying request');
           final opts = error.requestOptions;
           final token = await _storage.read(key: _accessTokenKey);
           opts.headers['Authorization'] = 'Bearer $token';
@@ -253,15 +282,17 @@ class ApiClient {
             final response = await _dio.fetch(opts);
             return handler.resolve(response);
           } catch (e) {
-            debugPrint('🔄 Retry failed: $e');
+            if (kDebugMode) debugPrint('🔄 Retry failed: $e');
             return handler.next(error);
           }
         } else {
-          debugPrint('🔄 Token refresh failed — clearing tokens');
+          if (kDebugMode) debugPrint('🔄 Token refresh failed — clearing tokens');
           await clearTokens();
         }
-      } finally {
-        _isRefreshing = false;
+      } catch (e) {
+        _refreshCompleter?.complete(false);
+        _refreshCompleter = null;
+        if (kDebugMode) debugPrint('🔄 Token refresh threw: $e');
       }
     }
     handler.next(error);

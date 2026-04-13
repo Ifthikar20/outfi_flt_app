@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show min;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -42,6 +43,8 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _searchPrompts = [];
   List<String> _suggestions = [];
   bool _featuredLoaded = false;
+  int _retryCount = 0;
+  static const int _maxRetries = 3;
 
   // Fallback prompts shown while API loads
   static const _fallbackPrompts = [
@@ -468,21 +471,29 @@ class _HomeScreenState extends State<HomeScreen> {
             BlocConsumer<DealsBloc, DealsState>(
               listener: (context, state) {
                 if (state is DealsError) {
-                  // Retry once after 3s — listener fires once per state change
-                  Future.delayed(const Duration(seconds: 3), () {
-                    if (mounted) {
-                      context.read<DealsBloc>().add(DealsFetchTrending());
-                    }
-                  });
+                  // Exponential backoff: 3s, 6s, 12s — max 3 retries
+                  _retryCount++;
+                  if (_retryCount <= _maxRetries) {
+                    final delay = Duration(seconds: 3 * (1 << (_retryCount - 1)));
+                    Future.delayed(delay, () {
+                      if (mounted) {
+                        context.read<DealsBloc>().add(DealsFetchTrending());
+                      }
+                    });
+                  }
+                }
+                if (state is DealsLoaded) {
+                  _retryCount = 0; // reset on success
                 }
               },
               builder: (context, state) {
                 if (state is DealsLoading || state is DealsInitial || state is DealsError) {
-                  return SliverPadding(
+                    final cols = MediaQuery.of(context).size.width >= 600 ? 3 : 2;
+                    return SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: cols,
                         childAspectRatio: 0.62,
                         crossAxisSpacing: 14,
                         mainAxisSpacing: 14,
@@ -497,11 +508,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 if (state is DealsLoaded) {
                   final deals = state.result.deals;
+                  final cols = MediaQuery.of(context).size.width >= 600 ? 3 : 2;
                   return SliverPadding(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     sliver: SliverGrid(
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: cols,
                         childAspectRatio: 0.62,
                         crossAxisSpacing: 14,
                         mainAxisSpacing: 14,

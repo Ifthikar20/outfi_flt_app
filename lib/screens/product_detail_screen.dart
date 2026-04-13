@@ -13,6 +13,9 @@ import '../services/deal_alert_service.dart';
 import '../services/deal_service.dart';
 import '../services/freemium_gate_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/product/price_comparison_card.dart';
+import '../widgets/product/routing_page.dart';
+import '../widgets/product/similar_products_row.dart';
 
 /// Light-themed product detail page.
 ///
@@ -242,7 +245,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       const SizedBox(height: 14),
 
                       // ── Price Comparison (compact) ─────────
-                      _PriceComparisonCard(
+                      PriceComparisonCard(
                         deal: _deal,
                         comparisonData: _comparisonData,
                         loading: _loadingComparison,
@@ -401,62 +404,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               // ── Similar Products ────────────────
               if (_similarProducts.isNotEmpty || _loadingComparison)
                 SliverToBoxAdapter(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
-                        child: Text(
-                          'You may also like',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        height: 190,
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 300),
-                          child: _loadingComparison
-                              ? ListView.builder(
-                                  key: const ValueKey('loading'),
-                                  scrollDirection: Axis.horizontal,
-                                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                                  itemCount: 4,
-                                  itemBuilder: (_, __) => Container(
-                                    width: 130,
-                                    margin: const EdgeInsets.only(right: 12),
-                                    decoration: BoxDecoration(
-                                      color: AppTheme.bgCard,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                )
-                              : _similarProducts.isEmpty
-                                  ? const SizedBox.shrink(key: ValueKey('empty'))
-                                  : ListView.builder(
-                                      key: const ValueKey('loaded'),
-                                      scrollDirection: Axis.horizontal,
-                                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                                      itemCount: _similarProducts.length,
-                                      itemBuilder: (_, i) => _SimilarProductCard(
-                                        deal: _similarProducts[i],
-                                        onTap: () {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute(
-                                              builder: (_) => ProductDetailScreen(
-                                                  deal: _similarProducts[i]),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                        ),
-                      ),
-                      const SizedBox(height: 40),
-                    ],
+                  child: SimilarProductsRow(
+                    similarProducts: _similarProducts,
+                    loading: _loadingComparison,
                   ),
                 ),
             ],
@@ -513,7 +463,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
-        pageBuilder: (_, __, ___) => _RoutingPage(
+        pageBuilder: (_, __, ___) => RoutingPage(
           storeName: storeName,
           onComplete: () {
             Navigator.of(context).pop();
@@ -693,232 +643,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             mode: url_launcher.LaunchMode.externalApplication);
       }
     }
-  }
-}
-
-// ─── Price Comparison Card ──────────────────
-
-class _PriceComparisonCard extends StatelessWidget {
-  final Deal deal;
-  final Map<String, dynamic>? comparisonData;
-  final bool loading;
-
-  const _PriceComparisonCard({
-    required this.deal,
-    this.comparisonData,
-    this.loading = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (deal.price == null) return const SizedBox.shrink();
-
-    // Show loading skeleton
-    if (loading) {
-      return Container(
-        height: 50,
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppTheme.border, width: 0.5),
-        ),
-        child: const Center(
-          child: SizedBox(
-            width: 16,
-            height: 16,
-            child: CircularProgressIndicator(
-                strokeWidth: 1.5, color: AppTheme.accent),
-          ),
-        ),
-      );
-    }
-
-    final price = deal.price!;
-
-    // Only show the meter when we have REAL data from the backend or
-    // from compared products. Never fake a ±30% estimate.
-    double? low, high;
-    double position;
-    String rating;
-    int sellerCount;
-
-    if (comparisonData != null) {
-      final priceRange = comparisonData!['price_range'] as Map<String, dynamic>? ?? {};
-      low = (priceRange['low'] as num?)?.toDouble();
-      high = (priceRange['high'] as num?)?.toDouble();
-
-      // If backend didn't return a range, compute from compared_products
-      if (low == null || high == null) {
-        final compared = comparisonData!['compared_products'] as List<dynamic>? ?? [];
-        final prices = compared
-            .map((p) => (p is Map ? (p['price'] as num?)?.toDouble() : null))
-            .whereType<double>()
-            .toList();
-        if (prices.length >= 2) {
-          prices.sort();
-          low = prices.first;
-          high = prices.last;
-        }
-      }
-
-      // If we still have no real range, hide the meter entirely
-      if (low == null || high == null) return const SizedBox.shrink();
-
-      // Compute position from actual data if backend didn't provide it
-      final backendPos = (comparisonData!['position'] as num?)?.toDouble();
-      if (backendPos != null) {
-        position = backendPos;
-      } else {
-        final range = high - low;
-        position = range > 0 ? ((price - low) / range).clamp(0.0, 1.0) : 0.5;
-      }
-
-      // Compute rating from actual position if backend didn't provide it
-      final backendRating = comparisonData!['rating'] as String?;
-      if (backendRating != null) {
-        rating = backendRating;
-      } else {
-        rating = position < 0.33 ? 'great' : (position < 0.66 ? 'fair' : 'high');
-      }
-
-      sellerCount = comparisonData!['seller_count'] as int? ?? 0;
-    } else {
-      // No backend data at all — don't show a fake meter
-      return const SizedBox.shrink();
-    }
-
-    final String label;
-    final Color labelColor;
-    if (rating == 'great') {
-      label = 'Great price';
-      labelColor = AppTheme.success;
-    } else if (rating == 'fair') {
-      label = 'Fair price';
-      labelColor = AppTheme.warning;
-    } else {
-      label = '\$${price.toInt()} is high';
-      labelColor = AppTheme.error;
-    }
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: BoxDecoration(
-        color: AppTheme.bgCard,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppTheme.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: labelColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    color: labelColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const Spacer(),
-              if (sellerCount >= 2)
-                Text(
-                  '$sellerCount sellers',
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Gradient bar
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              Container(
-                height: 8,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(4),
-                  gradient: LinearGradient(
-                    colors: [
-                      AppTheme.success,
-                      const Color(0xFFFFEB3B),
-                      AppTheme.warning,
-                      AppTheme.error,
-                    ],
-                  ),
-                ),
-              ),
-
-              // Price indicator
-              Positioned(
-                left: 0,
-                right: 0,
-                top: -28,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final leftOffset = (constraints.maxWidth * position)
-                        .clamp(0.0, constraints.maxWidth - 90);
-                    return SizedBox(
-                      height: 22,
-                      child: Padding(
-                        padding: EdgeInsets.only(left: leftOffset),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: labelColor,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '\$${price.toInt()}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-
-          // Min / Max labels
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                '\$${low.toInt()}',
-                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-              ),
-              Text(
-                '\$${high.toInt()}',
-                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -1183,91 +907,6 @@ class _MiniTag extends StatelessWidget {
   }
 }
 
-// ─── Similar Product Card ──────────────────────
-class _SimilarProductCard extends StatelessWidget {
-  final Deal deal;
-  final VoidCallback onTap;
-
-  const _SimilarProductCard({required this.deal, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 130,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.bgCard,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.border, width: 0.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-              child: deal.image != null
-                  ? CachedNetworkImage(
-                      imageUrl: deal.image!,
-                      height: 120,
-                      width: 130,
-                      fit: BoxFit.cover,
-                      memCacheWidth: 260,
-                      placeholder: (_, __) => Container(
-                        height: 120,
-                        color: AppTheme.bgCard,
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        height: 120,
-                        color: AppTheme.bgCard,
-                        child: const Icon(Icons.image_outlined,
-                            color: AppTheme.textMuted, size: 24),
-                      ),
-                    )
-                  : Container(
-                      height: 120,
-                      color: AppTheme.bgCard,
-                      child: const Icon(Icons.image_outlined,
-                          color: AppTheme.textMuted, size: 24),
-                    ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    deal.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textPrimary,
-                      height: 1.3,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    deal.formattedPrice,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ─── Collapsible Product Details ─────────────────
 class _CollapsibleDetails extends StatefulWidget {
   final Deal deal;
@@ -1345,97 +984,3 @@ class _CollapsibleDetailsState extends State<_CollapsibleDetails> {
   }
 }
 
-// ─── Routing Animation Page ──────────────────────
-class _RoutingPage extends StatefulWidget {
-  final String storeName;
-  final VoidCallback onComplete;
-
-  const _RoutingPage({required this.storeName, required this.onComplete});
-
-  @override
-  State<_RoutingPage> createState() => _RoutingPageState();
-}
-
-class _RoutingPageState extends State<_RoutingPage> with SingleTickerProviderStateMixin {
-  late final AnimationController _dotCtrl;
-  int _dotCount = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _dotCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
-    )..addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() => _dotCount = (_dotCount + 1) % 4);
-        _dotCtrl.forward(from: 0);
-      }
-    });
-    _dotCtrl.forward();
-
-    // Navigate after short delay
-    Future.delayed(const Duration(milliseconds: 1800), () {
-      if (mounted) widget.onComplete();
-    });
-  }
-
-  @override
-  void dispose() {
-    _dotCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final dots = '.' * (_dotCount + 1);
-    return Scaffold(
-      backgroundColor: AppTheme.bgMain,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Store icon with pulse
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0.8, end: 1.0),
-              duration: const Duration(milliseconds: 800),
-              curve: Curves.elasticOut,
-              builder: (_, scale, child) => Transform.scale(scale: scale, child: child),
-              child: Container(
-                width: 72, height: 72,
-                decoration: BoxDecoration(
-                  color: AppTheme.accent.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.storefront_outlined, size: 32, color: AppTheme.accent),
-              ),
-            ),
-            const SizedBox(height: 28),
-            Text(
-              'Routing to ${widget.storeName}$dots',
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.textPrimary,
-                letterSpacing: 0.2,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Opening in your browser',
-              style: TextStyle(fontSize: 13, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: 24, height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppTheme.accent,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

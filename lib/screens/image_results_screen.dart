@@ -1,8 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import '../bloc/deals/deals_bloc.dart';
-import '../bloc/deals/deals_event.dart';
+import '../bloc/image_search/image_search_bloc.dart';
 import '../models/deal.dart';
 import '../theme/app_theme.dart';
 import '../widgets/quota_warning_banner.dart';
@@ -27,8 +26,8 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<DealsBloc>().add(
-      DealsImageSearchRequested(
+    context.read<ImageSearchBloc>().add(
+      ImageSearchRequested(
         imagePath: widget.imagePath,
         latitude: widget.latitude,
         longitude: widget.longitude,
@@ -40,9 +39,9 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Similar Products')),
-      body: BlocBuilder<DealsBloc, DealsState>(
+      body: BlocBuilder<ImageSearchBloc, ImageSearchState>(
         builder: (context, state) {
-          if (state is DealsLoading) {
+          if (state is ImageSearchLoading) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -75,7 +74,7 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
             );
           }
 
-          if (state is DealsError) {
+          if (state is ImageSearchError) {
             return Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -87,8 +86,8 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () => context.read<DealsBloc>().add(
-                      DealsImageSearchRequested(
+                    onPressed: () => context.read<ImageSearchBloc>().add(
+                      ImageSearchRequested(
                         imagePath: widget.imagePath,
                         latitude: widget.latitude,
                         longitude: widget.longitude,
@@ -101,7 +100,7 @@ class _ImageResultsScreenState extends State<ImageResultsScreen> {
             );
           }
 
-          if (state is DealsLoaded) {
+          if (state is ImageSearchLoaded) {
             final result = state.result;
             return CustomScrollView(
               slivers: [

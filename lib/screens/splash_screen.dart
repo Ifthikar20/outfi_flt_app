@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
+import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -56,6 +57,9 @@ class _SplashScreenState extends State<SplashScreen>
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthAuthenticated) {
+          // Init push notifications AFTER auth — the device token
+          // registration POST requires a valid auth header.
+          PushNotificationService().init();
           context.go('/');
         } else if (state is AuthUnauthenticated) {
           context.go('/onboarding');
