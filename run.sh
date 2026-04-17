@@ -61,6 +61,38 @@ MODE="debug"
 [[ $INSTALL -eq 1 ]] && MODE="release"
 log "Mode: ${BOLD}${MODE}${NC} | Fast: ${FAST} | Device: ${DEVICE:-auto}"
 
+# ── Source .env for secrets (Stripe keys, API keys, etc.) ───
+ENV_FILE="$(cd "$(dirname "$0")/.." && pwd)/.env"
+if [[ -f "$ENV_FILE" ]]; then
+  log "Sourcing secrets from ${DIM}.env${NC}"
+  set -a
+  source "$ENV_FILE"
+  set +a
+else
+  warn "No .env found at $ENV_FILE — using shell env / defaults"
+fi
+
+# ── Dart-define secrets (override with env vars) ───
+OUTFI_API_KEY="${OUTFI_MOBILE_API_KEY:-}"
+if [[ -z "$OUTFI_API_KEY" ]]; then
+  warn "OUTFI_MOBILE_API_KEY not set — mobile API auth will fail"
+fi
+STRIPE_KEY="${STRIPE_PUBLISHABLE_KEY:-pk_test_placeholder}"
+STRIPE_MERCHANT="${STRIPE_MERCHANT_ID:-merchant.ai.outfi.app}"
+GOOGLE_ID="${GOOGLE_CLIENT_ID:-placeholder}"
+# Detect test vs live mode for Google Pay
+STRIPE_TEST_MODE="false"
+[[ "$STRIPE_KEY" == pk_test_* ]] && STRIPE_TEST_MODE="true"
+
+DART_DEFINES=(
+  --dart-define=OUTFI_MOBILE_API_KEY="$OUTFI_API_KEY"
+  --dart-define=STRIPE_PUBLISHABLE_KEY="$STRIPE_KEY"
+  --dart-define=STRIPE_MERCHANT_ID="$STRIPE_MERCHANT"
+  --dart-define=STRIPE_TEST_MODE="$STRIPE_TEST_MODE"
+  --dart-define=GOOGLE_CLIENT_ID="$GOOGLE_ID"
+)
+log "API key: ${DIM}${OUTFI_API_KEY:0:12}...${NC}"
+
 # ── Step 1: Flutter version ─────────────────────────
 step "1/7 Flutter Environment"
 timer_start
@@ -152,7 +184,7 @@ if [[ $INSTALL -eq 1 ]]; then
   # Build
   timer_start
   log "flutter build ios --release (this takes 30-90s)..."
-  flutter build ios --release 2>&1 | while IFS= read -r line; do
+  flutter build ios --release "${DART_DEFINES[@]}" 2>&1 | while IFS= read -r line; do
     case "$line" in
       *"Running Xcode"*) log "$line" ;;
       *"Xcode build done"*) ok "$line" ;;
@@ -189,7 +221,7 @@ if [[ $INSTALL -eq 1 ]]; then
     timer_end
   else
     warn "No device ID — falling back to flutter run --release"
-    flutter run --release
+    flutter run --release "${DART_DEFINES[@]}"
   fi
 
   # Done
@@ -207,8 +239,8 @@ else
   warn "Use './run.sh --install' for standalone release install"
   echo ""
   if [[ -n "$DEVICE" ]]; then
-    flutter run -d "$DEVICE"
+    flutter run "${DART_DEFINES[@]}" -d "$DEVICE"
   else
-    flutter run
+    flutter run "${DART_DEFINES[@]}"
   fi
 fi

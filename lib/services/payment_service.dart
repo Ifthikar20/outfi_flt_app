@@ -1,12 +1,19 @@
 import 'package:flutter/foundation.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import 'api_client.dart';
+import 'storekit_service.dart';
 
+/// Payment service — uses native Apple StoreKit for IAP subscriptions.
+///
+/// Purchases go through Apple's native StoreKit. The backend is notified
+/// via receipt verification and App Store Server Notifications.
 class PaymentService {
   final ApiClient _api;
+  final StoreKitService _storeKit = StoreKitService();
 
   PaymentService(this._api);
 
-  /// Fetch current subscription status + limits.
+  /// Fetch current subscription status from server.
   Future<Map<String, dynamic>> getStatus() async {
     try {
       final resp = await _api.get(_paymentsPath('/status/'),
@@ -14,68 +21,60 @@ class PaymentService {
       final data = resp.data;
       if (data is Map<String, dynamic>) return data;
       if (data is Map) return Map<String, dynamic>.from(data);
-      return _defaults;
     } catch (e) {
-      debugPrint('PaymentService.getStatus error: $e');
-      return _defaults;
+      debugPrint('PaymentService: status check failed: $e');
     }
+    return _defaults;
   }
 
-  /// Create a PaymentIntent for Apple Pay / card.
-  Future<Map<String, dynamic>> subscribe({
-    required String plan,
-    String paymentMethod = 'apple_pay',
-  }) async {
-    final resp = await _api.post(_paymentsPath('/subscribe/'),
-        fullUrl: _paymentsUrl('/subscribe/'),
-        data: {
-          'plan': plan,
-          'payment_method': paymentMethod,
-        });
-    final data = resp.data;
-    if (data is Map<String, dynamic>) return data;
-    if (data is Map) return Map<String, dynamic>.from(data);
-    return {};
+  /// Check if user is premium.
+  Future<bool> isPremium() async {
+    final status = await getStatus();
+    return status['is_premium'] == true;
   }
 
-  /// Cancel subscription at end of billing period.
+  /// Get available subscription products from App Store.
+  Future<List<ProductDetails>> getProducts() async {
+    return await _storeKit.fetchProducts();
+  }
+
+  /// Purchase a product via Apple IAP.
+  ///
+  /// Shows the native iOS subscription confirmation sheet.
+  /// Results are delivered via StoreKitService callbacks.
+  Future<void> subscribe(ProductDetails product) async {
+    await _storeKit.purchaseProduct(product);
+  }
+
+  /// Cancel subscription.
+  ///
+  /// Apple subscriptions are managed by the user in iOS Settings.
   Future<Map<String, dynamic>> cancel() async {
-    final resp = await _api.post(_paymentsPath('/cancel/'),
-        fullUrl: _paymentsUrl('/cancel/'));
-    final data = resp.data;
-    if (data is Map<String, dynamic>) return data;
-    if (data is Map) return Map<String, dynamic>.from(data);
-    return {};
+    return {'message': 'To cancel, go to Settings → Apple ID → Subscriptions.'};
   }
 
-  /// Restore subscription (after reinstall / device switch).
-  Future<Map<String, dynamic>> restore() async {
-    final resp = await _api.post(_paymentsPath('/restore/'),
-        fullUrl: _paymentsUrl('/restore/'));
-    final data = resp.data;
-    if (data is Map<String, dynamic>) return data;
-    if (data is Map) return Map<String, dynamic>.from(data);
-    return {};
+  /// Restore previous purchases.
+  Future<void> restore() async {
+    await _storeKit.restorePurchases();
   }
 
-  /// Payment history.
+  /// Payment history (from server).
   Future<List<dynamic>> getHistory() async {
-    final resp = await _api.get(_paymentsPath('/history/'),
-        fullUrl: _paymentsUrl('/history/'));
-    final data = resp.data;
-    if (data is Map) return (data['payments'] as List?) ?? [];
+    try {
+      final resp = await _api.get(_paymentsPath('/history/'),
+          fullUrl: _paymentsUrl('/history/'));
+      final data = resp.data;
+      if (data is Map) return (data['payments'] as List?) ?? [];
+    } catch (_) {}
     return [];
   }
 
-  /// Confirm a payment succeeded.
-  Future<Map<String, dynamic>> confirmPayment(String paymentIntentId) async {
-    return getStatus();
-  }
+  // ── Helpers ─────────────────────────────────────────────────
 
   static const _paymentsBase = 'https://api.outfi.ai/api/v1/payments';
 
   String _paymentsUrl(String path) => '$_paymentsBase$path';
-  String _paymentsPath(String path) => '/payments$path'; // fallback key
+  String _paymentsPath(String path) => '/payments$path';
 
   static const _defaults = {
     'plan': 'free',

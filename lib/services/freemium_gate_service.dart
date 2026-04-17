@@ -3,7 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'payment_service.dart';
 import 'api_client.dart';
 
-/// Hybrid freemium gate that checks server-side quotas when online
+/// Hybrid freemium gate that checks server-side subscription status
 /// and falls back to local counters when offline.
 ///
 /// Rules:
@@ -31,15 +31,19 @@ class FreemiumGateService {
   bool? _isPremiumCached;
   DateTime? _premiumCacheTime;
 
-  /// Check with backend whether the user has an active premium subscription.
-  /// Caches for 5 minutes to avoid hammering the server on every tap.
+  /// Check whether the user has an active premium subscription.
+  ///
+  /// Checks server API → cached value → false.
+  /// Caches for 5 minutes to avoid hammering on every tap.
   Future<bool> isPremium() async {
-    // Refresh cache every 5 minutes (catches mid-session expiry)
+    // Refresh cache every 5 minutes
     if (_isPremiumCached != null &&
         _premiumCacheTime != null &&
         DateTime.now().difference(_premiumCacheTime!).inMinutes < 5) {
       return _isPremiumCached!;
     }
+
+    // Server-side check (synced via App Store Server Notifications)
     try {
       final status = await PaymentService(ApiClient()).getStatus();
       _isPremiumCached = status['is_premium'] == true;

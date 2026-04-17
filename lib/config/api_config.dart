@@ -1,12 +1,10 @@
 /// Centralized API configuration.
 ///
-/// All secrets are injected via `--dart-define` at build time.  
+/// All secrets are injected via `--dart-define` at build time.
 /// Example build command:
 /// ```bash
 /// flutter build ios \
 ///   --dart-define=OUTFI_MOBILE_API_KEY=your-key \
-///   --dart-define=STRIPE_PUBLISHABLE_KEY=pk_live_xxx \
-///   --dart-define=STRIPE_MERCHANT_ID=merchant.ai.outfi.app \
 ///   --dart-define=GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 /// ```
 class ApiConfig {
@@ -34,15 +32,6 @@ class ApiConfig {
   /// Will be empty string if not provided at build time.
   static const String mobileApiKey =
       String.fromEnvironment('OUTFI_MOBILE_API_KEY');
-
-  /// Stripe publishable key — use pk_test_ for dev, pk_live_ for prod.
-  static const String stripePublishableKey =
-      String.fromEnvironment('STRIPE_PUBLISHABLE_KEY');
-
-  /// Stripe merchant identifier for Apple Pay.
-  static const String stripeMerchantId =
-      String.fromEnvironment('STRIPE_MERCHANT_ID',
-          defaultValue: 'merchant.ai.outfi.app');
 
   // OAuth
   static const String googleClientId =

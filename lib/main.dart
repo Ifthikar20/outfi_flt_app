@@ -1,32 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:flutter_stripe/flutter_stripe.dart';
 import 'bloc/auth/auth_bloc.dart';
 import 'bloc/deals/deals_bloc.dart';
 import 'bloc/deal_alerts/deal_alerts_bloc.dart';
 import 'bloc/favorites/favorites_bloc.dart';
 import 'bloc/image_search/image_search_bloc.dart';
 
-import 'config/api_config.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
 import 'services/deal_service.dart';
 import 'services/deal_alert_service.dart';
 import 'services/favorites_service.dart';
 import 'services/featured_service.dart';
+import 'services/storekit_service.dart';
 
 import 'router/app_router.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Stripe from environment config (not hardcoded)
-  if (ApiConfig.stripePublishableKey.isNotEmpty) {
-    Stripe.publishableKey = ApiConfig.stripePublishableKey;
-    Stripe.merchantIdentifier = ApiConfig.stripeMerchantId;
-  }
+  // Initialize native Apple StoreKit (no API key needed)
+  await StoreKitService().init();
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
