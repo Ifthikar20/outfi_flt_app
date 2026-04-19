@@ -6,6 +6,8 @@ import 'package:url_launcher/url_launcher.dart' as url_launcher;
 import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
+import '../services/api_client.dart';
+import '../services/payment_service.dart';
 import '../theme/app_theme.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -13,6 +15,8 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Rebuild the premium card whenever the screen regains focus so a
+    // just-completed purchase or cancellation is reflected immediately.
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthUnauthenticated) context.go('/login');
@@ -55,53 +59,7 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 32),
 
                   // ─── Premium ─────────────────────────
-                  GestureDetector(
-                    onTap: () => context.push('/premium'),
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1A1A1A), Color(0xFF2A2A2A)],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accent.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(Icons.workspace_premium,
-                                color: AppTheme.accent, size: 24),
-                          ),
-                          const SizedBox(width: 14),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text('Outfi Premium',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 16,
-                                    )),
-                                SizedBox(height: 2),
-                                Text('Unlimited searches, more alerts, ad-free',
-                                    style: TextStyle(
-                                      color: Color(0xFFAAAAAA),
-                                      fontSize: 13,
-                                    )),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: AppTheme.accent),
-                        ],
-                      ),
-                    ),
-                  ),
+                  const _PremiumCard(),
                   const SizedBox(height: 24),
 
                   // ─── Quick links ──────────────────────
@@ -349,6 +307,183 @@ Version 1.0.0
 © 2026 Outfi. All rights reserved.
 support@outfi.ai
 ''';
+
+/// Premium card that reflects the server's view of subscription state.
+///
+/// The *client-side copy is display-only* — all gating decisions still go
+/// through the server via FreemiumGateService / PaymentService.getStatus().
+/// This widget never trusts a locally-stored "is premium" flag as truth; it
+/// always fetches fresh status on mount.
+class _PremiumCard extends StatefulWidget {
+  const _PremiumCard();
+
+  @override
+  State<_PremiumCard> createState() => _PremiumCardState();
+}
+
+class _PremiumCardState extends State<_PremiumCard> {
+  bool _loading = true;
+  bool _isPremium = false;
+  String? _planLabel;
+  String? _renewalLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+
+  Future<void> _loadStatus() async {
+    try {
+      final status = await PaymentService(ApiClient()).getStatus();
+      if (!mounted) return;
+      final isPremium = status['is_premium'] == true;
+      setState(() {
+        _loading = false;
+        _isPremium = isPremium;
+        _planLabel = _labelForPlan(status['plan']);
+        _renewalLabel = _labelForRenewal(status);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  String? _labelForPlan(Object? plan) {
+    if (plan is! String) return null;
+    switch (plan) {
+      case 'premium_monthly':
+      case 'monthly':
+        return 'Monthly';
+      case 'premium_weekly':
+      case 'premium_biweekly':
+      case 'weekly':
+        return 'Weekly';
+    }
+    return null;
+  }
+
+  String? _labelForRenewal(Map<String, dynamic> status) {
+    // Server is the source of truth. Expect ISO-8601 timestamps.
+    final expires = status['current_period_end'] ?? status['expires_at'];
+    if (expires is! String) return null;
+    final dt = DateTime.tryParse(expires);
+    if (dt == null) return null;
+    final cancelAtPeriodEnd = status['cancel_at_period_end'] == true ||
+        status['status'] == 'canceled';
+    final month = _monthShort(dt.month);
+    final label = '$month ${dt.day}, ${dt.year}';
+    return cancelAtPeriodEnd ? 'Ends $label' : 'Renews $label';
+  }
+
+  static String _monthShort(int m) => const [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ][(m - 1).clamp(0, 11)];
+
+  @override
+  Widget build(BuildContext context) {
+    final tapTarget = _isPremium ? '/subscription' : '/premium';
+    return GestureDetector(
+      onTap: () async {
+        final changed = await context.push<bool>(tapTarget);
+        if (changed == true && mounted) _loadStatus();
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1A1A), Color(0xFF2A2A2A)],
+          ),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(Icons.workspace_premium,
+                  color: AppTheme.accent, size: 24),
+            ),
+            const SizedBox(width: 14),
+            Expanded(child: _buildText()),
+            const Icon(Icons.chevron_right, color: AppTheme.accent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildText() {
+    if (_loading) {
+      return const Text('Outfi Premium',
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16));
+    }
+    if (!_isPremium) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Outfi Premium',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 16)),
+          SizedBox(height: 2),
+          Text('Unlimited searches, more alerts, ad-free',
+              style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
+        ],
+      );
+    }
+    final meta = [
+      if (_planLabel != null) _planLabel!,
+      if (_renewalLabel != null) _renewalLabel!,
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text('Outfi Premium',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16)),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'ACTIVE',
+                style: TextStyle(
+                  color: AppTheme.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (meta.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            meta,
+            style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
+          ),
+        ],
+      ],
+    );
+  }
+}
 
 /// Displays "Outfi v[name] ([build])" pulled from the native app bundle.
 /// Fetches once in initState, so it's cheap to rebuild.

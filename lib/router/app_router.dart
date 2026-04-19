@@ -17,6 +17,7 @@ import '../screens/profile_screen.dart';
 import '../screens/brand_screen.dart';
 import '../screens/product_detail_screen.dart';
 import '../screens/paywall_screen.dart';
+import '../screens/manage_subscription_screen.dart';
 import '../screens/preferences_screen.dart';
 import '../screens/deal_alerts_screen.dart';
 import '../screens/fashion_timeline_screen.dart';
@@ -192,6 +193,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/timeline',
       builder: (context, state) => const FashionTimelineScreen(),
+    ),
+    GoRoute(
+      path: '/subscription',
+      builder: (context, state) => const ManageSubscriptionScreen(),
     ),
     GoRoute(
       path: '/premium',
