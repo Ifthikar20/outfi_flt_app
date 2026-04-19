@@ -78,12 +78,17 @@ class ApiClient {
   // ─── Certificate Pinning ──────────────────────
 
   /// Pins TLS connections to the SHA-256 fingerprints defined in [ApiConfig].
+  /// When pins are absent (e.g. a build without `--dart-define=OUTFI_CERT_PIN_*`),
+  /// falls back to system trust — there is no `kDebugMode` bypass.
   void _configureCertificatePinning() {
-    if (ApiConfig.certificatePins.isEmpty || kDebugMode) {
-      return;
-    }
+    _applyPinning(_dio);
+  }
 
-    (_dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
+  /// Applies certificate pinning to any [Dio] instance. Safe to call even
+  /// when no pins are configured — it becomes a no-op.
+  static void _applyPinning(Dio dio) {
+    if (ApiConfig.certificatePins.isEmpty) return;
+    (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
       final client = HttpClient();
       client.badCertificateCallback =
           (X509Certificate cert, String host, int port) {
@@ -158,7 +163,7 @@ class ApiClient {
       debugPrint('');
       debugPrint('┌─── REQUEST ──────────────────────────────────');
       debugPrint('│ ${options.method} ${options.uri}');
-      debugPrint('│ Auth: ${token != null && token.isNotEmpty ? "Bearer ${token.substring(0, token.length.clamp(0, 20))}..." : "NONE"}');
+      debugPrint('│ Auth: ${token != null && token.isNotEmpty ? "Bearer <set>" : "NONE"}');
       debugPrint('│ Host: ${options.uri.host}');
       if (options.data != null) {
         final dataStr = options.data.toString();
@@ -198,12 +203,28 @@ class ApiClient {
       debugPrint('│ ${response.requestOptions.method} ${response.requestOptions.path}');
       if (response.data is Map) {
         final map = response.data as Map;
+        final path = response.requestOptions.path;
+        final isSensitive = path.contains('/auth/') ||
+            path.contains('/login') ||
+            path.contains('/register') ||
+            path.contains('/token');
         debugPrint('│ Keys: ${map.keys.toList()}');
-        for (final key in map.keys.take(8)) {
-          final val = map[key].toString();
-          debugPrint('│   $key: ${val.length > 100 ? "${val.substring(0, 100)}..." : val}');
+        if (!isSensitive) {
+          for (final key in map.keys.take(8)) {
+            final keyStr = key.toString().toLowerCase();
+            final isSecretKey = keyStr.contains('token') ||
+                keyStr.contains('password') ||
+                keyStr.contains('secret') ||
+                keyStr.contains('key');
+            if (isSecretKey) {
+              debugPrint('│   $key: <redacted>');
+            } else {
+              final val = map[key].toString();
+              debugPrint('│   $key: ${val.length > 100 ? "${val.substring(0, 100)}..." : val}');
+            }
+          }
+          if (map.keys.length > 8) debugPrint('│   ...and ${map.keys.length - 8} more keys');
         }
-        if (map.keys.length > 8) debugPrint('│   ...and ${map.keys.length - 8} more keys');
       } else if (response.data is List) {
         debugPrint('│ Array: ${(response.data as List).length} items');
       } else {
@@ -312,6 +333,7 @@ class ApiClient {
           'X-Outfi-Platform': DeviceInfoService.getPlatform(),
         },
       ));
+      _applyPinning(refreshDio);
 
       final response = await refreshDio.post(
         '${ApiConfig.baseUrl.replaceAll('/mobile', '')}/auth/token/refresh/',

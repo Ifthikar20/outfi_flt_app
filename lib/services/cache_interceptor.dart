@@ -1,15 +1,19 @@
-import 'dart:collection';
+import 'dart:async';
 import 'package:dio/dio.dart';
 
 /// In-memory LRU cache for GET responses.
 ///
 /// Caches successful GET responses for [defaultTtl] to avoid
 /// repeated identical network requests. POST/PATCH/DELETE bypass the cache.
+/// Also deduplicates concurrent identical GETs: a second request arriving
+/// while the first is still in flight waits on the first's result instead
+/// of firing a duplicate network call.
 class CacheInterceptor extends Interceptor {
   final int maxEntries;
   final Duration defaultTtl;
 
   final _cache = <String, _CacheEntry>{};
+  final _inflight = <String, Completer<Response>>{};
 
   CacheInterceptor({
     this.maxEntries = 100,
@@ -17,8 +21,9 @@ class CacheInterceptor extends Interceptor {
   });
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
-    // Only cache GET requests
+  Future<void> onRequest(
+      RequestOptions options, RequestInterceptorHandler handler) async {
+    // Only cache/dedup GET requests
     if (options.method != 'GET') {
       handler.next(options);
       return;
@@ -41,33 +46,77 @@ class CacheInterceptor extends Interceptor {
       return;
     }
 
-    // Cache MISS — proceed with network request
+    // Dedup: another identical request is already in flight — await it.
+    final pending = _inflight[key];
+    if (pending != null) {
+      try {
+        final shared = await pending.future;
+        handler.resolve(
+          Response(
+            requestOptions: options,
+            data: shared.data,
+            statusCode: shared.statusCode,
+            headers: shared.headers,
+          ),
+          true,
+        );
+      } catch (e) {
+        handler.reject(
+          e is DioException
+              ? DioException(
+                  requestOptions: options,
+                  error: e.error,
+                  response: e.response,
+                  type: e.type,
+                )
+              : DioException(requestOptions: options, error: e),
+          true,
+        );
+      }
+      return;
+    }
+
+    // Cache MISS — track this as the in-flight request and proceed.
+    _inflight[key] = Completer<Response>();
     handler.next(options);
   }
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
-    // Only cache successful GET responses
-    if (response.requestOptions.method == 'GET' &&
-        response.statusCode != null &&
-        response.statusCode! >= 200 &&
-        response.statusCode! < 300) {
-      final key = _cacheKey(response.requestOptions);
+    final opts = response.requestOptions;
+    if (opts.method == 'GET') {
+      final key = _cacheKey(opts);
 
-      // Evict oldest entry if cache is full
-      if (_cache.length >= maxEntries) {
-        _cache.remove(_cache.keys.first);
+      // Only cache successful responses
+      if (response.statusCode != null &&
+          response.statusCode! >= 200 &&
+          response.statusCode! < 300) {
+        // Evict oldest entry if cache is full
+        if (_cache.length >= maxEntries) {
+          _cache.remove(_cache.keys.first);
+        }
+        _cache[key] = _CacheEntry(
+          data: response.data,
+          statusCode: response.statusCode!,
+          headers: response.headers,
+          expiresAt: DateTime.now().add(defaultTtl),
+        );
       }
 
-      _cache[key] = _CacheEntry(
-        data: response.data,
-        statusCode: response.statusCode!,
-        headers: response.headers,
-        expiresAt: DateTime.now().add(defaultTtl),
-      );
+      // Release any waiters (success or non-2xx, so they don't hang).
+      _inflight.remove(key)?.complete(response);
     }
 
     handler.next(response);
+  }
+
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    final opts = err.requestOptions;
+    if (opts.method == 'GET') {
+      _inflight.remove(_cacheKey(opts))?.completeError(err);
+    }
+    handler.next(err);
   }
 
   /// Clears the entire cache (e.g. on logout).

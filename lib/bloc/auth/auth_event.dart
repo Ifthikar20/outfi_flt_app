@@ -16,8 +16,13 @@ class AuthLoginRequested extends AuthEvent {
 
   const AuthLoginRequested({required this.email, required this.password});
 
+  // Password is intentionally excluded from props/toString to prevent
+  // leakage via BLoC observers, devtools, and crash reporters.
   @override
-  List<Object?> get props => [email, password];
+  List<Object?> get props => [email];
+
+  @override
+  String toString() => 'AuthLoginRequested(email: $email)';
 }
 
 class AuthRegisterRequested extends AuthEvent {
@@ -34,7 +39,11 @@ class AuthRegisterRequested extends AuthEvent {
   });
 
   @override
-  List<Object?> get props => [email, password, firstName, lastName];
+  List<Object?> get props => [email, firstName, lastName];
+
+  @override
+  String toString() =>
+      'AuthRegisterRequested(email: $email, firstName: $firstName, lastName: $lastName)';
 }
 
 class AuthGoogleSignInRequested extends AuthEvent {}

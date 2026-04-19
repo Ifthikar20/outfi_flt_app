@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'api_client.dart';
 
 /// Removes white/near-white backgrounds from product images entirely
@@ -10,17 +10,37 @@ import 'api_client.dart';
 /// This matches the result of the web app's rembg approach for product
 /// images (which almost always have white/light backgrounds).
 class BackgroundRemovalService {
-  BackgroundRemovalService(ApiClient _);
+  // HTTPS-only + size cap. Product images are hosted on a range of retailer
+  // CDNs, so per-host pinning isn't feasible — we rely on system TLS.
+  static const int _maxImageBytes = 10 * 1024 * 1024;
+
+  final Dio _dio;
+
+  BackgroundRemovalService(ApiClient _)
+      : _dio = Dio(BaseOptions(
+          responseType: ResponseType.bytes,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 20),
+        ));
 
   /// Download an image from [url] and make white-ish pixels transparent.
-  /// Returns transparent PNG bytes.
+  /// Returns transparent PNG bytes. Rejects non-HTTPS URLs and oversized responses.
   Future<Uint8List?> removeBackgroundFromUrl(String imageUrl) async {
     try {
-      // Download the image
-      final response = await http.get(Uri.parse(imageUrl));
-      if (response.statusCode != 200) return null;
+      final uri = Uri.tryParse(imageUrl);
+      if (uri == null || uri.scheme != 'https') {
+        debugPrint('❌ Background removal: refusing non-HTTPS URL');
+        return null;
+      }
+
+      final response = await _dio.getUri<List<int>>(uri);
+      if (response.statusCode != 200 || response.data == null) return null;
+      if (response.data!.length > _maxImageBytes) {
+        debugPrint('❌ Background removal: image exceeds size cap');
+        return null;
+      }
       return await removeBackgroundFromBytes(
-          Uint8List.fromList(response.bodyBytes));
+          Uint8List.fromList(response.data!));
     } catch (e) {
       debugPrint('❌ Background removal failed: $e');
       return null;

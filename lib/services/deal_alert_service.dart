@@ -81,8 +81,16 @@ class DealAlertService {
     await _api.delete('/deal-alerts/$alertId/');
   }
 
-  Future<List<DealAlertMatch>> getMatches(String alertId, {bool unseenOnly = false}) async {
-    final params = <String, String>{};
+  Future<List<DealAlertMatch>> getMatches(
+    String alertId, {
+    bool unseenOnly = false,
+    int limit = 50,
+    int offset = 0,
+  }) async {
+    final params = <String, String>{
+      'limit': limit.toString(),
+      'offset': offset.toString(),
+    };
     if (unseenOnly) params['unseen_only'] = 'true';
     final response = await _api.get('/deal-alerts/$alertId/matches/', params: params);
     final data = response.data;

@@ -5,6 +5,7 @@ import '../bloc/auth/auth_bloc.dart';
 import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../utils/validators.dart';
 import '../widgets/watercolor_background.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -29,7 +30,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _handleRegister() {
-    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) return;
+    final emailError = AuthValidators.email(_emailController.text);
+    final passwordError = AuthValidators.password(_passwordController.text);
+    final error = emailError ?? passwordError;
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error)),
+      );
+      return;
+    }
     final nameParts = _nameController.text.trim().split(' ');
     context.read<AuthBloc>().add(AuthRegisterRequested(
       email: _emailController.text.trim(),
