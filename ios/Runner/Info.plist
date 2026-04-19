@@ -53,5 +53,14 @@
 	<string>Outfi uses your camera to snap photos of clothing and find the best deals.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Outfi needs access to your photo library so you can search for deals using saved images.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<false/>
+		<key>NSAllowsArbitraryLoadsInWebContent</key>
+		<false/>
+		<key>NSAllowsLocalNetworking</key>
+		<false/>
+	</dict>
 </dict>
 </plist>

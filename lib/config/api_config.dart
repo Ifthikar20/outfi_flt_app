@@ -8,14 +8,20 @@
 ///   --dart-define=GOOGLE_CLIENT_ID=xxx.apps.googleusercontent.com
 /// ```
 class ApiConfig {
-  static const String baseUrl = 'https://api.outfi.ai/api/v1/mobile';
-  static const String webBaseUrl = 'https://outfi.ai';
-  static const String apiHost = 'api.outfi.ai';
-
-  // Local development:
-  // static const String baseUrl = 'http://192.168.1.66:8000/api/v1/mobile';
-  // static const String webBaseUrl = 'http://192.168.1.66:8000';
-  // static const String apiHost = '192.168.1.66';
+  // Endpoints can be overridden at build time via --dart-define for local
+  // development; defaults are production.
+  static const String baseUrl = String.fromEnvironment(
+    'OUTFI_API_BASE_URL',
+    defaultValue: 'https://api.outfi.ai/api/v1/mobile',
+  );
+  static const String webBaseUrl = String.fromEnvironment(
+    'OUTFI_WEB_BASE_URL',
+    defaultValue: 'https://outfi.ai',
+  );
+  static const String apiHost = String.fromEnvironment(
+    'OUTFI_API_HOST',
+    defaultValue: 'api.outfi.ai',
+  );
 
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);
@@ -39,15 +45,20 @@ class ApiConfig {
   static const String appleServiceId = 'com.outfi.app';
 
   // ── Certificate Pinning ───────────────────────────────────────
-  // SHA-256 fingerprints of your TLS certificate chain (leaf + intermediate).
+  // SHA-256 fingerprints of the TLS certificate chain (leaf + backup intermediate).
+  // Injected at build time via --dart-define so real hashes never land in the repo.
   // Generate with:
   //   openssl s_client -connect api.outfi.ai:443 | openssl x509 -pubkey -noout \
   //     | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
   //
   // ⚠️  UPDATE these before every certificate renewal (or pin the intermediate CA).
-  static const List<String> certificatePins = [
-    // TODO: Replace with real SHA-256 base64 hashes of your certificate's SPKI
-    // 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',  // leaf
-    // 'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=',  // intermediate / backup
-  ];
+  static const String _certPinLeaf =
+      String.fromEnvironment('OUTFI_CERT_PIN_LEAF');
+  static const String _certPinBackup =
+      String.fromEnvironment('OUTFI_CERT_PIN_BACKUP');
+
+  static List<String> get certificatePins => [
+        if (_certPinLeaf.isNotEmpty) _certPinLeaf,
+        if (_certPinBackup.isNotEmpty) _certPinBackup,
+      ];
 }

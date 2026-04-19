@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
@@ -361,10 +362,36 @@ class _AlertCard extends StatelessWidget {
 }
 
 // ─── Detail View (shows matches) ─────────────────
-class _AlertDetailView extends StatelessWidget {
+class _AlertDetailView extends StatefulWidget {
   final DealAlert alert;
 
   const _AlertDetailView({required this.alert});
+
+  @override
+  State<_AlertDetailView> createState() => _AlertDetailViewState();
+}
+
+class _AlertDetailViewState extends State<_AlertDetailView> {
+  Timer? _ticker;
+  DateTime _now = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Refresh "time ago" labels once a minute instead of every frame.
+    _ticker = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      setState(() => _now = DateTime.now());
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  DealAlert get alert => widget.alert;
 
   @override
   Widget build(BuildContext context) {
@@ -413,7 +440,7 @@ class _AlertDetailView extends StatelessWidget {
                   if (alert.lastCheckedAt != null) ...[
                     const Text('  ·  ', style: TextStyle(color: AppTheme.textMuted)),
                     Text(
-                      _timeAgo(alert.lastCheckedAt!),
+                      _timeAgo(alert.lastCheckedAt!, _now),
                       style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
                     ),
                   ],
@@ -468,8 +495,8 @@ class _AlertDetailView extends StatelessWidget {
     );
   }
 
-  static String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
+  static String _timeAgo(DateTime dt, DateTime now) {
+    final diff = now.difference(dt);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
