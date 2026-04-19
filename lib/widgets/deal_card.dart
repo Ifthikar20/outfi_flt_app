@@ -263,6 +263,30 @@ class _DealCardState extends State<DealCard>
                           ],
                         ],
                       ),
+
+                      // Distance (only when the deal is a local/marketplace hit)
+                      if (widget.deal.distanceMiles != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on_outlined,
+                                size: 11,
+                                color: AppTheme.textMuted,
+                              ),
+                              const SizedBox(width: 2),
+                              Text(
+                                widget.deal.formattedDistance ?? '',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),

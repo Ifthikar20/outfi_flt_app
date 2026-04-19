@@ -21,6 +21,8 @@ class DealService {
     String? gender,
     List<String>? sources,
     int? maxDistance,
+    double? latitude,
+    double? longitude,
   }) async {
     // Retry loop for 429 rate limiting
     for (int attempt = 0; attempt < 3; attempt++) {
@@ -35,6 +37,8 @@ class DealService {
           if (gender != null) 'gender': gender,
           if (sources != null) 'sources': sources,
           if (maxDistance != null) 'max_distance': maxDistance,
+          if (latitude != null) 'latitude': latitude,
+          if (longitude != null) 'longitude': longitude,
         });
         return SearchResult.fromJson(response.data);
       } on DioException catch (e) {
@@ -75,10 +79,18 @@ class DealService {
   Future<SearchResult> getTrending({
     int limit = 20,
     String sort = 'relevance',
+    bool nearMe = false,
+    double? latitude,
+    double? longitude,
+    int? maxDistance,
   }) async {
     final response = await _api.get('/deals/', params: {
       'limit': limit,
       'sort': sort,
+      if (nearMe) 'near_me': 'true',
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
+      if (maxDistance != null) 'max_distance': maxDistance,
     });
     return SearchResult.fromJson(response.data);
   }
