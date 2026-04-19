@@ -16,7 +16,8 @@ import '../services/background_removal_service.dart';
 import '../models/storyboard.dart';
 import '../services/storyboard_service.dart';
 import '../theme/app_theme.dart';
-import 'fashion_board_screen.dart' show boardsRefreshNotifier;
+import 'fashion_board_screen.dart'
+    show boardsRefreshNotifier, boardUpsertNotifier;
 
 class FashionBoardEditor extends StatefulWidget {
   final Storyboard? existingBoard;
@@ -575,20 +576,24 @@ class _FashionBoardEditorState extends State<FashionBoardEditor> {
     };
 
     try {
+      Storyboard savedBoard;
       if (_savedToken != null && _savedToken!.isNotEmpty) {
-        await service.updateStoryboard(
+        savedBoard = await service.updateStoryboard(
           token: _savedToken!,
           title: _titleCtrl.text,
           storyboardData: boardData,
           snapshotPath: snapshotPath,
         );
       } else {
-        final created = await service.createStoryboard(
+        savedBoard = await service.createStoryboard(
           title: _titleCtrl.text,
           storyboardData: boardData,
         );
-        _savedToken = created.token;
+        _savedToken = savedBoard.token;
       }
+      // Optimistic upsert: the list listens to this and renders the card
+      // immediately, so the user doesn't wait on a stale GET /storyboard/.
+      boardUpsertNotifier.value = savedBoard;
       boardsRefreshNotifier.value++;
       if (mounted && !silent) {
         ScaffoldMessenger.of(context).showSnackBar(

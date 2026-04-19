@@ -9,6 +9,11 @@ import '../theme/app_theme.dart';
 /// Global notifier to trigger board list refresh from anywhere
 final boardsRefreshNotifier = ValueNotifier<int>(0);
 
+/// Carries the latest saved/updated board so the list can insert it
+/// optimistically without waiting for the server's list endpoint to
+/// reflect the new row (covers backend replica lag and any stray cache).
+final boardUpsertNotifier = ValueNotifier<Storyboard?>(null);
+
 class FashionBoardScreen extends StatefulWidget {
   const FashionBoardScreen({super.key});
 
@@ -27,14 +32,31 @@ class _FashionBoardScreenState extends State<FashionBoardScreen>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     boardsRefreshNotifier.addListener(_onRefreshNotified);
+    boardUpsertNotifier.addListener(_onUpsertNotified);
     _load();
   }
 
   void _onRefreshNotified() => _load();
 
+  void _onUpsertNotified() {
+    final board = boardUpsertNotifier.value;
+    if (board == null || !mounted) return;
+    setState(() {
+      _boards ??= [];
+      final idx = _boards!.indexWhere((b) => b.token == board.token);
+      if (idx >= 0) {
+        _boards![idx] = board;
+      } else {
+        _boards!.insert(0, board);
+      }
+      _loading = false;
+    });
+  }
+
   @override
   void dispose() {
     boardsRefreshNotifier.removeListener(_onRefreshNotified);
+    boardUpsertNotifier.removeListener(_onUpsertNotified);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -351,15 +373,23 @@ class _BoardCard extends StatelessWidget {
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(AppTheme.radiusMd)),
                     child: board.snapshotUrl.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: board.snapshotUrl,
-                            fit: BoxFit.cover,
+                        // `contain` preserves the full board layout so items
+                        // placed at the edges stay at the edges; `cover`
+                        // would crop whichever dimension doesn't match the
+                        // card and silently drop edge content.
+                        ? Container(
+                            color: _parseColor(bg),
                             width: double.infinity,
-                            memCacheWidth: 400,
-                            fadeInDuration: const Duration(milliseconds: 150),
-                            errorWidget: (_, __, ___) => items.isNotEmpty
-                                ? _MiniThumbnail(items: items, boardData: board.storyboardData)
-                                : Center(child: Icon(Icons.dashboard_rounded, size: 32, color: AppTheme.textMuted)),
+                            child: CachedNetworkImage(
+                              imageUrl: board.snapshotUrl,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
+                              memCacheWidth: 400,
+                              fadeInDuration: const Duration(milliseconds: 150),
+                              errorWidget: (_, __, ___) => items.isNotEmpty
+                                  ? _MiniThumbnail(items: items, boardData: board.storyboardData)
+                                  : Center(child: Icon(Icons.dashboard_rounded, size: 32, color: AppTheme.textMuted)),
+                            ),
                           )
                         : items.isEmpty
                             ? Center(
