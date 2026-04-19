@@ -15,151 +15,172 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Rebuild the premium card whenever the screen regains focus so a
-    // just-completed purchase or cancellation is reflected immediately.
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthUnauthenticated) context.go('/login');
       },
       child: Scaffold(
-        appBar: AppBar(title: const Text('Profile')),
-        body: BlocBuilder<AuthBloc, AuthState>(
-          builder: (context, state) {
-            final user = state is AuthAuthenticated ? state.user : null;
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                children: [
-                  // Outfi Logo
-                  Image.asset(
-                    AppTheme.logoPath,
-                    height: 72,
-                    fit: BoxFit.contain,
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Avatar
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: const BoxDecoration(
-                      color: AppTheme.bgCard,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.person_outline,
-                        size: 32, color: AppTheme.textMuted),
-                  ),
-                  const SizedBox(height: 14),
-
-                  Text(
-                    user?.email ?? 'User',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 32),
-
-                  // ─── Premium ─────────────────────────
-                  const _PremiumCard(),
-                  const SizedBox(height: 24),
-
-                  // ─── Quick links ──────────────────────
-                  _SettingsRow(
-                    icon: Icons.bookmark_border,
-                    label: 'Saved Deals',
-                    onTap: () => context.go('/favorites'),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.dashboard_outlined,
-                    label: 'My Boards',
-                    onTap: () => context.go('/boards'),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.notifications_active_outlined,
-                    label: 'Alerts',
-                    onTap: () => context.push('/deal-alerts'),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.calendar_month,
-                    label: 'Fashion Timeline',
-                    onTap: () => context.push('/timeline'),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.tune,
-                    label: 'Style & Location Preferences',
-                    onTap: () => context.push('/preferences'),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-
-                  // ─── Legal / Info ────────────────────
-                  _SettingsRow(
-                    icon: Icons.description_outlined,
-                    label: 'Terms & Conditions',
-                    onTap: () => _showLegalPage(context,
-                        title: 'Terms & Conditions',
-                        content: _termsContent),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.privacy_tip_outlined,
-                    label: 'Privacy Policy',
-                    onTap: () => _showLegalPage(context,
-                        title: 'Privacy Policy',
-                        content: _privacyContent),
-                  ),
-                  _SettingsRow(
-                    icon: Icons.verified_user_outlined,
-                    label: 'Usage Policy',
-                    onTap: () => _showLegalPage(context,
-                        title: 'Usage Policy',
-                        content: _usageContent),
-                  ),
-                  const SizedBox(height: 16),
-                  const Divider(),
-                  const SizedBox(height: 16),
-
-                  _SettingsRow(
-                    icon: Icons.help_outline,
-                    label: 'Help & Support',
-                    onTap: () async {
-                      final uri = Uri.parse('mailto:support@outfi.ai');
-                      if (await url_launcher.canLaunchUrl(uri)) {
-                        await url_launcher.launchUrl(uri);
-                      }
-                    },
-                  ),
-                  _SettingsRow(
-                    icon: Icons.info_outline,
-                    label: 'About Outfi',
-                    onTap: () => _showLegalPage(context,
-                        title: 'About Outfi',
-                        content: _aboutContent),
-                  ),
-                  const SizedBox(height: 32),
-
-                  // Logout
-                  SizedBox(
-                    width: double.infinity,
-                    height: 50,
-                    child: OutlinedButton.icon(
-                      onPressed: () =>
-                          context.read<AuthBloc>().add(AuthLogoutRequested()),
-                      icon: const Icon(Icons.logout, size: 18),
-                      label: const Text('Sign Out'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.error,
-                        side: BorderSide(color: AppTheme.error.withValues(alpha: 0.3)),
+        backgroundColor: AppTheme.bgMain,
+        body: SafeArea(
+          child: BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, state) {
+              final user = state is AuthAuthenticated ? state.user : null;
+              return CustomScrollView(
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontFamily: AppTheme.fontFamily,
+                          fontSize: 32,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.5,
+                          color: AppTheme.textPrimary,
+                        ),
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 20),
-                  const _VersionLabel(),
-                  const SizedBox(height: 8),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _IdentityCard(
+                        name: user?.email ?? 'User',
+                        email: user?.email ?? '',
+                      ),
+                    ),
+                  ),
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(24, 16, 24, 0),
+                    sliver: SliverToBoxAdapter(child: _PremiumCard()),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _Section(
+                        title: 'Your account',
+                        rows: [
+                          _Row(
+                            icon: Icons.bookmark_border,
+                            label: 'Saved deals',
+                            onTap: () => context.go('/favorites'),
+                          ),
+                          _Row(
+                            icon: Icons.dashboard_outlined,
+                            label: 'My boards',
+                            onTap: () => context.go('/boards'),
+                          ),
+                          _Row(
+                            icon: Icons.notifications_active_outlined,
+                            label: 'Alerts',
+                            onTap: () => context.push('/deal-alerts'),
+                          ),
+                          _Row(
+                            icon: Icons.calendar_month,
+                            label: 'Fashion timeline',
+                            onTap: () => context.push('/timeline'),
+                          ),
+                          _Row(
+                            icon: Icons.tune,
+                            label: 'Style & location preferences',
+                            onTap: () => context.push('/preferences'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _Section(
+                        title: 'Legal',
+                        rows: [
+                          _Row(
+                            icon: Icons.description_outlined,
+                            label: 'Terms & Conditions',
+                            onTap: () => _showLegalPage(context,
+                                title: 'Terms & Conditions',
+                                content: _termsContent),
+                          ),
+                          _Row(
+                            icon: Icons.privacy_tip_outlined,
+                            label: 'Privacy Policy',
+                            onTap: () => _showLegalPage(context,
+                                title: 'Privacy Policy',
+                                content: _privacyContent),
+                          ),
+                          _Row(
+                            icon: Icons.verified_user_outlined,
+                            label: 'Usage Policy',
+                            onTap: () => _showLegalPage(context,
+                                title: 'Usage Policy',
+                                content: _usageContent),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
+                    sliver: SliverToBoxAdapter(
+                      child: _Section(
+                        title: 'Support',
+                        rows: [
+                          _Row(
+                            icon: Icons.help_outline,
+                            label: 'Help & support',
+                            onTap: () async {
+                              final uri = Uri.parse('mailto:support@outfi.ai');
+                              if (await url_launcher.canLaunchUrl(uri)) {
+                                await url_launcher.launchUrl(uri);
+                              }
+                            },
+                          ),
+                          _Row(
+                            icon: Icons.info_outline,
+                            label: 'About Outfi',
+                            onTap: () => _showLegalPage(context,
+                                title: 'About Outfi',
+                                content: _aboutContent),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                    sliver: SliverToBoxAdapter(
+                      child: GestureDetector(
+                        onTap: () => context
+                            .read<AuthBloc>()
+                            .add(AuthLogoutRequested()),
+                        behavior: HitTestBehavior.opaque,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: Text(
+                            'Log out',
+                            style: TextStyle(
+                              fontFamily: AppTheme.fontFamily,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textPrimary,
+                              decoration: TextDecoration.underline,
+                              decorationThickness: 1.4,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SliverPadding(
+                    padding: EdgeInsets.fromLTRB(24, 12, 24, 32),
+                    sliver: SliverToBoxAdapter(child: _VersionLabel()),
+                  ),
                 ],
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ),
     );
@@ -183,6 +204,403 @@ class ProfileScreen extends StatelessWidget {
         ),
       ),
     ));
+  }
+}
+
+// ─── Identity Card ─────────────────────────────────────────
+class _IdentityCard extends StatelessWidget {
+  final String name;
+  final String email;
+
+  const _IdentityCard({required this.name, required this.email});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppTheme.bgMain,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: const BoxDecoration(
+              color: AppTheme.bgCard,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              _initials(email),
+              style: const TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textPrimary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _displayName(name, email),
+                  style: const TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+                if (email.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    email,
+                    style: const TextStyle(
+                      fontFamily: AppTheme.fontFamily,
+                      fontSize: 13,
+                      color: AppTheme.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _displayName(String name, String email) {
+    if (name.isNotEmpty && name != email) return name;
+    if (email.contains('@')) return email.split('@').first;
+    return name.isEmpty ? 'User' : name;
+  }
+
+  static String _initials(String email) {
+    if (email.isEmpty) return '·';
+    final handle = email.contains('@') ? email.split('@').first : email;
+    final letter = handle.isNotEmpty ? handle[0] : '·';
+    return letter.toUpperCase();
+  }
+}
+
+// ─── Section ───────────────────────────────────────────────
+class _Section extends StatelessWidget {
+  final String title;
+  final List<_Row> rows;
+
+  const _Section({required this.title, required this.rows});
+
+  @override
+  Widget build(BuildContext context) {
+    final children = <Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      children.add(rows[i]);
+      if (i < rows.length - 1) {
+        children.add(const Divider(
+          height: 1,
+          thickness: 0.5,
+          color: AppTheme.divider,
+          indent: 44,
+        ));
+      }
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8, left: 4),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: AppTheme.textPrimary,
+              letterSpacing: -0.2,
+            ),
+          ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: AppTheme.bgMain,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Column(children: children),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Row ───────────────────────────────────────────────────
+class _Row extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final Widget? trailing;
+
+  const _Row({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Row(
+            children: [
+              Icon(icon, size: 20, color: AppTheme.textPrimary),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    fontFamily: AppTheme.fontFamily,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textPrimary,
+                  ),
+                ),
+              ),
+              if (trailing != null) trailing!,
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppTheme.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Premium Card ──────────────────────────────────────────
+/// Premium card that reflects the server's view of subscription state.
+///
+/// The *client-side copy is display-only* — all gating decisions still go
+/// through the server via FreemiumGateService / PaymentService.getStatus().
+/// This widget never trusts a locally-stored "is premium" flag as truth; it
+/// always fetches fresh status on mount.
+class _PremiumCard extends StatefulWidget {
+  const _PremiumCard();
+
+  @override
+  State<_PremiumCard> createState() => _PremiumCardState();
+}
+
+class _PremiumCardState extends State<_PremiumCard> {
+  bool _loading = true;
+  bool _isPremium = false;
+  String? _planLabel;
+  String? _renewalLabel;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatus();
+  }
+
+  Future<void> _loadStatus() async {
+    try {
+      final status = await PaymentService(ApiClient()).getStatus();
+      if (!mounted) return;
+      final isPremium = status['is_premium'] == true;
+      setState(() {
+        _loading = false;
+        _isPremium = isPremium;
+        _planLabel = _labelForPlan(status['plan']);
+        _renewalLabel = _labelForRenewal(status);
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _loading = false);
+    }
+  }
+
+  String? _labelForPlan(Object? plan) {
+    if (plan is! String) return null;
+    switch (plan) {
+      case 'premium_monthly':
+      case 'monthly':
+        return 'Monthly';
+      case 'premium_weekly':
+      case 'premium_biweekly':
+      case 'weekly':
+        return 'Weekly';
+    }
+    return null;
+  }
+
+  String? _labelForRenewal(Map<String, dynamic> status) {
+    final expires = status['current_period_end'] ?? status['expires_at'];
+    if (expires is! String) return null;
+    final dt = DateTime.tryParse(expires);
+    if (dt == null) return null;
+    final cancelAtPeriodEnd = status['cancel_at_period_end'] == true ||
+        status['status'] == 'canceled';
+    final month = _monthShort(dt.month);
+    final label = '$month ${dt.day}, ${dt.year}';
+    return cancelAtPeriodEnd ? 'Ends $label' : 'Renews $label';
+  }
+
+  static String _monthShort(int m) => const [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ][(m - 1).clamp(0, 11)];
+
+  @override
+  Widget build(BuildContext context) {
+    final tapTarget = _isPremium ? '/subscription' : '/premium';
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        onTap: () async {
+          final changed = await context.push<bool>(tapTarget);
+          if (changed == true && mounted) _loadStatus();
+        },
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.bgMain,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppTheme.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: AppTheme.accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(Icons.workspace_premium,
+                    color: AppTheme.accent, size: 22),
+              ),
+              const SizedBox(width: 14),
+              Expanded(child: _buildText()),
+              const Icon(Icons.chevron_right,
+                  size: 20, color: AppTheme.textMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildText() {
+    if (_loading) {
+      return const Text(
+        'Outfi Premium',
+        style: TextStyle(
+          fontFamily: AppTheme.fontFamily,
+          color: AppTheme.textPrimary,
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
+        ),
+      );
+    }
+    if (!_isPremium) {
+      return const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Outfi Premium',
+            style: TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              color: AppTheme.textPrimary,
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(height: 2),
+          Text(
+            'Unlimited searches, more alerts, ad-free',
+            style: TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              color: AppTheme.textSecondary,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      );
+    }
+    final meta = [
+      if (_planLabel != null) _planLabel!,
+      if (_renewalLabel != null) _renewalLabel!,
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Text(
+              'Outfi Premium',
+              style: TextStyle(
+                fontFamily: AppTheme.fontFamily,
+                color: AppTheme.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'ACTIVE',
+                style: TextStyle(
+                  fontFamily: AppTheme.fontFamily,
+                  color: AppTheme.accent,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (meta.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(
+            meta,
+            style: const TextStyle(
+              fontFamily: AppTheme.fontFamily,
+              color: AppTheme.textSecondary,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ],
+    );
   }
 }
 
@@ -308,185 +726,7 @@ Version 1.0.0
 support@outfi.ai
 ''';
 
-/// Premium card that reflects the server's view of subscription state.
-///
-/// The *client-side copy is display-only* — all gating decisions still go
-/// through the server via FreemiumGateService / PaymentService.getStatus().
-/// This widget never trusts a locally-stored "is premium" flag as truth; it
-/// always fetches fresh status on mount.
-class _PremiumCard extends StatefulWidget {
-  const _PremiumCard();
-
-  @override
-  State<_PremiumCard> createState() => _PremiumCardState();
-}
-
-class _PremiumCardState extends State<_PremiumCard> {
-  bool _loading = true;
-  bool _isPremium = false;
-  String? _planLabel;
-  String? _renewalLabel;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStatus();
-  }
-
-  Future<void> _loadStatus() async {
-    try {
-      final status = await PaymentService(ApiClient()).getStatus();
-      if (!mounted) return;
-      final isPremium = status['is_premium'] == true;
-      setState(() {
-        _loading = false;
-        _isPremium = isPremium;
-        _planLabel = _labelForPlan(status['plan']);
-        _renewalLabel = _labelForRenewal(status);
-      });
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _loading = false);
-    }
-  }
-
-  String? _labelForPlan(Object? plan) {
-    if (plan is! String) return null;
-    switch (plan) {
-      case 'premium_monthly':
-      case 'monthly':
-        return 'Monthly';
-      case 'premium_weekly':
-      case 'premium_biweekly':
-      case 'weekly':
-        return 'Weekly';
-    }
-    return null;
-  }
-
-  String? _labelForRenewal(Map<String, dynamic> status) {
-    // Server is the source of truth. Expect ISO-8601 timestamps.
-    final expires = status['current_period_end'] ?? status['expires_at'];
-    if (expires is! String) return null;
-    final dt = DateTime.tryParse(expires);
-    if (dt == null) return null;
-    final cancelAtPeriodEnd = status['cancel_at_period_end'] == true ||
-        status['status'] == 'canceled';
-    final month = _monthShort(dt.month);
-    final label = '$month ${dt.day}, ${dt.year}';
-    return cancelAtPeriodEnd ? 'Ends $label' : 'Renews $label';
-  }
-
-  static String _monthShort(int m) => const [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-      ][(m - 1).clamp(0, 11)];
-
-  @override
-  Widget build(BuildContext context) {
-    final tapTarget = _isPremium ? '/subscription' : '/premium';
-    return GestureDetector(
-      onTap: () async {
-        final changed = await context.push<bool>(tapTarget);
-        if (changed == true && mounted) _loadStatus();
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A1A1A), Color(0xFF2A2A2A)],
-          ),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.workspace_premium,
-                  color: AppTheme.accent, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(child: _buildText()),
-            const Icon(Icons.chevron_right, color: AppTheme.accent),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildText() {
-    if (_loading) {
-      return const Text('Outfi Premium',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.w600, fontSize: 16));
-    }
-    if (!_isPremium) {
-      return const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Outfi Premium',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16)),
-          SizedBox(height: 2),
-          Text('Unlimited searches, more alerts, ad-free',
-              style: TextStyle(color: Color(0xFFAAAAAA), fontSize: 13)),
-        ],
-      );
-    }
-    final meta = [
-      if (_planLabel != null) _planLabel!,
-      if (_renewalLabel != null) _renewalLabel!,
-    ].join(' · ');
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Text('Outfi Premium',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 16)),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppTheme.accent.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: const Text(
-                'ACTIVE',
-                style: TextStyle(
-                  color: AppTheme.accent,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ),
-          ],
-        ),
-        if (meta.isNotEmpty) ...[
-          const SizedBox(height: 2),
-          Text(
-            meta,
-            style: const TextStyle(color: Color(0xFFAAAAAA), fontSize: 12),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 /// Displays "Outfi v[name] ([build])" pulled from the native app bundle.
-/// Fetches once in initState, so it's cheap to rebuild.
 class _VersionLabel extends StatefulWidget {
   const _VersionLabel();
 
@@ -508,9 +748,7 @@ class _VersionLabelState extends State<_VersionLabel> {
       final info = await PackageInfo.fromPlatform();
       if (!mounted) return;
       setState(() => _label = 'Outfi v${info.version} (${info.buildNumber})');
-    } catch (_) {
-      // If the native plugin fails for any reason, show nothing rather than crash.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -518,56 +756,9 @@ class _VersionLabelState extends State<_VersionLabel> {
     return Text(
       _label ?? '',
       style: const TextStyle(
+        fontFamily: AppTheme.fontFamily,
         fontSize: 12,
         color: AppTheme.textMuted,
-      ),
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SettingsRow({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      behavior: HitTestBehavior.opaque,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: AppTheme.bgCard,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ),
-            const Icon(Icons.chevron_right, size: 18, color: AppTheme.textMuted),
-          ],
-        ),
       ),
     );
   }
