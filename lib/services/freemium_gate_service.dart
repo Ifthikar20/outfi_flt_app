@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'payment_service.dart';
 import 'api_client.dart';
+import 'storekit_service.dart';
 
 /// Hybrid freemium gate that checks server-side subscription status
 /// and falls back to local counters when offline.
@@ -30,6 +32,20 @@ class FreemiumGateService {
   // Cached premium status — refreshed on each gate check
   bool? _isPremiumCached;
   DateTime? _premiumCacheTime;
+
+  StreamSubscription? _purchaseSub;
+
+  /// Wire up cache invalidation so a successful purchase anywhere in the app
+  /// drops the 5-minute TTL immediately. Call once from main() after
+  /// `StoreKitService().init()`.
+  void attachToStoreKit() {
+    _purchaseSub?.cancel();
+    _purchaseSub = StoreKitService().purchaseSuccessStream.listen((_) {
+      clearPremiumCache();
+      // Warm the cache so the next gate check is instant.
+      unawaited(isPremium());
+    });
+  }
 
   /// Check whether the user has an active premium subscription.
   ///

@@ -27,14 +27,18 @@ class _PaywallScreenState extends State<PaywallScreen>
   List<ProductDetails> _products = [];
   ProductDetails? _selectedProduct;
 
+  StreamSubscription<PurchaseDetails>? _successSub;
+  StreamSubscription<String>? _errorSub;
+  Timer? _restoreFallback;
+
   late AnimationController _shimmerCtrl;
 
   @override
   void initState() {
     super.initState();
     _paymentService = PaymentService(ApiClient());
-    _storeKit.onPurchaseSuccess = _onPurchaseSuccess;
-    _storeKit.onPurchaseError = _onPurchaseError;
+    _successSub = _storeKit.purchaseSuccessStream.listen(_onPurchaseSuccess);
+    _errorSub = _storeKit.purchaseErrorStream.listen(_onPurchaseError);
 
     _shimmerCtrl = AnimationController(
       vsync: this,
@@ -46,72 +50,141 @@ class _PaywallScreenState extends State<PaywallScreen>
 
   @override
   void dispose() {
+    _successSub?.cancel();
+    _errorSub?.cancel();
+    _restoreFallback?.cancel();
     _shimmerCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _loadProducts() async {
+    // Fast path: StoreKitService pre-fetches products in main(). If they're
+    // already cached, show the paywall instantly instead of spinning again.
+    final cached = _storeKit.products;
+    if (cached.isNotEmpty) {
+      setState(() {
+        _products = cached;
+        _selectedProduct = cached.first;
+        _loading = false;
+      });
+      return;
+    }
+
     try {
-      final products = await _paymentService.getProducts();
-      if (mounted) {
-        setState(() {
-          _products = products;
-          _selectedProduct = products.isNotEmpty ? products.first : null;
-          _loading = false;
-        });
-      }
+      final products = await _paymentService
+          .getProducts()
+          .timeout(const Duration(seconds: 5));
+      if (!mounted) return;
+      setState(() {
+        _products = products;
+        _selectedProduct = products.isNotEmpty ? products.first : null;
+        _loading = false;
+        if (products.isEmpty) {
+          _error = 'Plans are taking longer than usual. Try again.';
+        }
+      });
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _error = 'Unable to load plans. Check your connection.';
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Unable to load plans. Check your connection.';
+      });
     }
   }
 
   void _onPurchaseSuccess(PurchaseDetails purchase) {
     FreemiumGateService().clearPremiumCache();
+    _restoreFallback?.cancel();
     if (mounted) setState(() { _success = true; _purchasing = false; });
   }
 
   void _onPurchaseError(String error) {
-    if (mounted) {
-      setState(() {
-        _purchasing = false;
-        if (error != 'canceled') _error = 'Purchase failed. Please try again.';
-      });
+    if (!mounted) return;
+    _restoreFallback?.cancel();
+    setState(() {
+      _purchasing = false;
+      _error = _errorCopy(error);
+    });
+  }
+
+  /// Map Apple IAP error codes to user-facing copy. `canceled` is silent.
+  String? _errorCopy(String code) {
+    final c = code.toLowerCase();
+    if (c == 'canceled') return null;
+    if (c.contains('network') || c.contains('timeout')) {
+      return 'Network issue. Check your connection and try again.';
     }
+    if (c.contains('already') || c.contains('owned')) {
+      return "You're already subscribed. Try Restore Purchase.";
+    }
+    if (c.contains('payment') || c.contains('declined') || c.contains('invalid')) {
+      return 'Payment was declined. Try a different Apple ID payment method.';
+    }
+    if (c.contains('unavailable') || c.contains('not_allowed')) {
+      return 'Purchases are disabled on this device.';
+    }
+    return 'Purchase failed. Please try again.';
   }
 
   Future<void> _subscribe() async {
     if (_selectedProduct == null) return;
+    if (!mounted) return;
     setState(() { _purchasing = true; _error = null; });
+    // Invalidate the freemium cache up-front so post-purchase gate checks
+    // hit the server instead of returning a stale "free" verdict.
+    FreemiumGateService().clearPremiumCache();
     try {
       await _paymentService.subscribe(_selectedProduct!);
     } catch (e) {
-      if (mounted) {
-        setState(() { _purchasing = false; _error = 'Something went wrong.'; });
-      }
+      if (!mounted) return;
+      setState(() {
+        _purchasing = false;
+        _error = 'Something went wrong. Please try again.';
+      });
     }
   }
 
   Future<void> _restore() async {
+    if (!mounted) return;
     setState(() { _purchasing = true; _error = null; });
+    FreemiumGateService().clearPremiumCache();
+
+    // Fallback: if Apple's purchase stream doesn't deliver a restored
+    // purchase within 8s, poll the server once. Covers edge cases where
+    // there is nothing to restore (stream stays silent).
+    _restoreFallback?.cancel();
+    _restoreFallback = Timer(const Duration(seconds: 8), () async {
+      if (!mounted || _success) return;
+      try {
+        final status = await _paymentService.getStatus();
+        if (!mounted) return;
+        if (status['is_premium'] == true) {
+          FreemiumGateService().clearPremiumCache();
+          setState(() { _success = true; _purchasing = false; });
+        } else {
+          setState(() {
+            _purchasing = false;
+            _error = 'No subscription found.';
+          });
+        }
+      } catch (_) {
+        if (!mounted) return;
+        setState(() {
+          _purchasing = false;
+          _error = 'Could not restore.';
+        });
+      }
+    });
+
     try {
       await _paymentService.restore();
-      await Future.delayed(const Duration(seconds: 3));
-      final status = await _paymentService.getStatus();
-      if (status['is_premium'] == true) {
-        FreemiumGateService().clearPremiumCache();
-        if (mounted) setState(() => _success = true);
-      } else {
-        if (mounted) setState(() => _error = 'No subscription found.');
-      }
     } catch (_) {
-      if (mounted) setState(() => _error = 'Could not restore.');
-    } finally {
-      if (mounted) setState(() => _purchasing = false);
+      _restoreFallback?.cancel();
+      if (!mounted) return;
+      setState(() {
+        _purchasing = false;
+        _error = 'Could not restore.';
+      });
     }
   }
 
