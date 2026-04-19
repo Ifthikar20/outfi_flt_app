@@ -13,6 +13,7 @@ import 'services/deal_service.dart';
 import 'services/deal_alert_service.dart';
 import 'services/favorites_service.dart';
 import 'services/featured_service.dart';
+import 'services/freemium_gate_service.dart';
 import 'services/storekit_service.dart';
 
 import 'router/app_router.dart';
@@ -23,6 +24,8 @@ void main() async {
 
   // Initialize native Apple StoreKit (no API key needed)
   await StoreKitService().init();
+  // Invalidate freemium cache the moment a purchase succeeds.
+  FreemiumGateService().attachToStoreKit();
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,

@@ -30,8 +30,8 @@ class _RoutingPageState extends State<RoutingPage> with SingleTickerProviderStat
     });
     _dotCtrl.forward();
 
-    // Navigate after short delay
-    Future.delayed(const Duration(milliseconds: 1800), () {
+    // Navigate after short delay — kept brief so the redirect feels instant.
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) widget.onComplete();
     });
   }

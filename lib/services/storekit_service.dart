@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'api_client.dart';
 
@@ -25,12 +27,27 @@ class StoreKitService {
     'com.outfi.outfiApp.premium.biweekly', // Weekly plan
   };
 
-  // Callbacks
-  Function(PurchaseDetails)? onPurchaseSuccess;
-  Function(String)? onPurchaseError;
+  // Broadcast streams — multiple listeners are safe, nothing is overwritten
+  // when a new screen mounts. Events keep flowing even if no one is
+  // currently listening (e.g. app backgrounded mid-purchase).
+  final StreamController<PurchaseDetails> _successController =
+      StreamController<PurchaseDetails>.broadcast();
+  final StreamController<String> _errorController =
+      StreamController<String>.broadcast();
 
-  // Cached products
-  List<ProductDetails> products = [];
+  Stream<PurchaseDetails> get purchaseSuccessStream => _successController.stream;
+  Stream<String> get purchaseErrorStream => _errorController.stream;
+
+  // Cached products — exposed read-only so callers can't mutate the list.
+  final List<ProductDetails> _products = [];
+  List<ProductDetails> get products => List.unmodifiable(_products);
+
+  // Pending-receipt persistence: if /payments/verify-ios/ fails we queue the
+  // receipt here and retry on the next app launch / explicit flush. Without
+  // this the backend can miss the purchase and leave the user looking
+  // premium locally but free server-side.
+  static const _pendingReceiptsKey = 'pending_ios_receipts';
+  static const _storage = FlutterSecureStorage();
 
   // ── Initialization ─────────────────────────────────────────
 
@@ -56,7 +73,10 @@ class StoreKitService {
     await fetchProducts();
 
     _initialized = true;
-    debugPrint('StoreKit: initialized with ${products.length} products');
+    debugPrint('StoreKit: initialized with ${_products.length} products');
+
+    // Fire-and-forget: retry any receipts that failed to verify last run.
+    unawaited(flushPendingReceipts());
   }
 
   /// Fetch available products from App Store.
@@ -68,17 +88,19 @@ class StoreKitService {
 
       if (response.error != null) {
         debugPrint('StoreKit: product query error: ${response.error}');
-        return [];
+        return products;
       }
 
       if (response.notFoundIDs.isNotEmpty) {
         debugPrint('StoreKit: products not found: ${response.notFoundIDs}');
       }
 
-      products = response.productDetails.toList();
+      _products
+        ..clear()
+        ..addAll(response.productDetails);
 
       // Sort: monthly first, then weekly
-      products.sort((a, b) {
+      _products.sort((a, b) {
         if (a.id.contains('monthly')) return -1;
         if (b.id.contains('monthly')) return 1;
         return 0;
@@ -87,7 +109,7 @@ class StoreKitService {
       return products;
     } catch (e) {
       debugPrint('StoreKit: fetchProducts error: $e');
-      return [];
+      return products;
     }
   }
 
@@ -126,9 +148,11 @@ class StoreKitService {
           _handleSuccessfulPurchase(purchase);
           break;
         case PurchaseStatus.error:
-          debugPrint('StoreKit: purchase error: ${purchase.error?.message}');
-          onPurchaseError?.call(
-              purchase.error?.message ?? 'Purchase failed');
+          final code = purchase.error?.code ?? '';
+          final msg = purchase.error?.message ?? '';
+          debugPrint('StoreKit: purchase error: $code $msg');
+          // Emit a structured code so UI can differentiate.
+          _errorController.add(code.isNotEmpty ? code : (msg.isNotEmpty ? msg : 'error'));
           // Still need to complete the purchase to clear the queue
           if (purchase.pendingCompletePurchase) {
             _iap.completePurchase(purchase);
@@ -139,43 +163,112 @@ class StoreKitService {
           break;
         case PurchaseStatus.canceled:
           debugPrint('StoreKit: purchase canceled by user');
-          onPurchaseError?.call('canceled');
+          _errorController.add('canceled');
           break;
       }
     }
   }
 
   Future<void> _handleSuccessfulPurchase(PurchaseDetails purchase) async {
-    try {
-      // Send receipt to backend for verification
-      final receiptData =
-          purchase.verificationData.serverVerificationData;
+    final receiptData = purchase.verificationData.serverVerificationData;
+    final payload = {
+      'receipt_data': receiptData,
+      'product_id': purchase.productID,
+      'transaction_id': purchase.purchaseID,
+    };
 
+    bool verified = false;
+    try {
       final api = ApiClient();
-      final hasTokens = await api.hasTokens();
-      if (hasTokens) {
+      if (await api.hasTokens()) {
         await api.post(
           '/payments/verify-ios/',
           fullUrl: 'https://api.outfi.ai/api/v1/payments/verify-ios/',
-          data: {
-            'receipt_data': receiptData,
-            'product_id': purchase.productID,
-            'transaction_id': purchase.purchaseID,
-          },
+          data: payload,
         );
+        verified = true;
         debugPrint('StoreKit: receipt verified on server');
       }
-
-      onPurchaseSuccess?.call(purchase);
     } catch (e) {
-      debugPrint('StoreKit: server verification failed: $e');
-      // Still grant access locally — server will sync via notifications
-      onPurchaseSuccess?.call(purchase);
-    } finally {
-      // IMPORTANT: Always complete the purchase
-      if (purchase.pendingCompletePurchase) {
-        await _iap.completePurchase(purchase);
+      debugPrint('StoreKit: server verification failed — queuing for retry: $e');
+      await _queuePendingReceipt(payload);
+    }
+
+    // Grant access locally regardless — server will eventually sync (either
+    // via the queued retry above or App Store Server Notifications).
+    _successController.add(purchase);
+
+    // Mark this purchase as handled with StoreKit so it doesn't replay.
+    if (purchase.pendingCompletePurchase) {
+      await _iap.completePurchase(purchase);
+    }
+
+    if (!verified) {
+      // Try again immediately in the background — one quick retry covers
+      // transient blips without waiting for the next cold start.
+      unawaited(flushPendingReceipts());
+    }
+  }
+
+  // ── Pending receipt queue ──────────────────────────────────
+
+  Future<void> _queuePendingReceipt(Map<String, dynamic> payload) async {
+    try {
+      final raw = await _storage.read(key: _pendingReceiptsKey);
+      final List<dynamic> list = raw == null ? [] : (jsonDecode(raw) as List);
+      // De-dupe by transaction_id so a repeated retry of the same receipt
+      // doesn't grow the queue unbounded.
+      final txId = payload['transaction_id'];
+      list.removeWhere((e) => e is Map && e['transaction_id'] == txId);
+      list.add(payload);
+      await _storage.write(key: _pendingReceiptsKey, value: jsonEncode(list));
+    } catch (e) {
+      debugPrint('StoreKit: failed to persist pending receipt: $e');
+    }
+  }
+
+  /// Retry any receipts that previously failed server verification.
+  /// Safe to call multiple times — it no-ops when the queue is empty.
+  Future<void> flushPendingReceipts() async {
+    List<dynamic> list;
+    try {
+      final raw = await _storage.read(key: _pendingReceiptsKey);
+      if (raw == null) return;
+      list = jsonDecode(raw) as List;
+    } catch (e) {
+      debugPrint('StoreKit: pending queue read failed: $e');
+      return;
+    }
+    if (list.isEmpty) return;
+
+    final api = ApiClient();
+    if (!await api.hasTokens()) return;
+
+    final remaining = <dynamic>[];
+    for (final entry in list) {
+      if (entry is! Map) continue;
+      try {
+        await api.post(
+          '/payments/verify-ios/',
+          fullUrl: 'https://api.outfi.ai/api/v1/payments/verify-ios/',
+          data: Map<String, dynamic>.from(entry),
+        );
+        debugPrint('StoreKit: flushed pending receipt ${entry['transaction_id']}');
+      } catch (e) {
+        debugPrint('StoreKit: flush failed for ${entry['transaction_id']}: $e');
+        remaining.add(entry);
       }
+    }
+
+    try {
+      if (remaining.isEmpty) {
+        await _storage.delete(key: _pendingReceiptsKey);
+      } else {
+        await _storage.write(
+            key: _pendingReceiptsKey, value: jsonEncode(remaining));
+      }
+    } catch (e) {
+      debugPrint('StoreKit: pending queue write failed: $e');
     }
   }
 
@@ -183,5 +276,7 @@ class StoreKitService {
 
   void dispose() {
     _subscription?.cancel();
+    _successController.close();
+    _errorController.close();
   }
 }
