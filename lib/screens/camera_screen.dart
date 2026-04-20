@@ -12,6 +12,7 @@ import '../theme/app_theme.dart';
 import '../services/freemium_gate_service.dart';
 import '../services/location_service.dart';
 import '../widgets/loading_shimmer.dart';
+import '../widgets/paywall_sheet.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
@@ -137,7 +138,7 @@ class _CameraScreenState extends State<CameraScreen>
         // Freemium gate: 3 free image searches per day, then paywall.
         final gate = FreemiumGateService();
         if (!await gate.canImageSearch()) {
-          if (mounted) context.push('/premium');
+          if (mounted) await showPaywallSheet(context);
           return;
         }
         await gate.recordImageSearch();
@@ -174,7 +175,7 @@ class _CameraScreenState extends State<CameraScreen>
         // Freemium gate: 3 free image searches per day, then paywall.
         final gate = FreemiumGateService();
         if (!await gate.canImageSearch()) {
-          if (mounted) context.push('/premium');
+          if (mounted) await showPaywallSheet(context);
           return;
         }
         await gate.recordImageSearch();

@@ -6,6 +6,7 @@ import '../services/freemium_gate_service.dart';
 import '../services/payment_service.dart';
 import '../services/storekit_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/paywall_sheet.dart';
 
 /// Surface where a premium user can view plan details, cancel via the
 /// platform store, request a refund, or restore a prior purchase.
@@ -323,7 +324,7 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
           icon: Icons.upgrade,
           label: 'Upgrade to Premium',
           subtitle: 'Unlock unlimited image searches and more alerts.',
-          onTap: () => context.push('/premium'),
+          onTap: () => showPaywallSheet(context),
         ),
         const SizedBox(height: 12),
         _actionButton(

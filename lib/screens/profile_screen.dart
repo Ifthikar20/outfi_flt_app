@@ -9,6 +9,7 @@ import '../bloc/auth/auth_state.dart';
 import '../services/api_client.dart';
 import '../services/payment_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/paywall_sheet.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -473,13 +474,14 @@ class _PremiumCardState extends State<_PremiumCard> {
 
   @override
   Widget build(BuildContext context) {
-    final tapTarget = _isPremium ? '/subscription' : '/premium';
     return Material(
       color: Colors.transparent,
       child: InkWell(
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
         onTap: () async {
-          final changed = await context.push<bool>(tapTarget);
+          final changed = _isPremium
+              ? await context.push<bool>('/subscription')
+              : await showPaywallSheet(context);
           if (changed == true && mounted) _loadStatus();
         },
         child: Container(

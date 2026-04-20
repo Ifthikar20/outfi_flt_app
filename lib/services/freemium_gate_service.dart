@@ -29,43 +29,45 @@ class FreemiumGateService {
   static const int maxFreeBuys = 1;
   static const int maxFreeImageSearchesPerDay = 3;
 
-  // Cached premium status — refreshed on each gate check
+  // Cached premium status — refreshed on each gate check.
+  // 15-minute TTL: App Store Server Notifications webhook is the real
+  // source of truth; mobile cache is just to avoid hammering /status/.
   bool? _isPremiumCached;
   DateTime? _premiumCacheTime;
+  static const _premiumTtl = Duration(minutes: 15);
+
+  // Cached server quota (remaining buys / image searches).
+  Map<String, dynamic>? _serverQuotaCached;
+  DateTime? _serverQuotaCacheTime;
+  Future<Map<String, dynamic>?>? _inFlightQuota;
+  static const _quotaTtl = Duration(minutes: 5);
 
   StreamSubscription? _purchaseSub;
 
   /// Wire up cache invalidation so a successful purchase anywhere in the app
-  /// drops the 5-minute TTL immediately. Call once from main() after
+  /// drops the TTL immediately. Call once from main() after
   /// `StoreKitService().init()`.
   void attachToStoreKit() {
     _purchaseSub?.cancel();
     _purchaseSub = StoreKitService().purchaseSuccessStream.listen((_) {
       clearPremiumCache();
-      // Warm the cache so the next gate check is instant.
       unawaited(isPremium());
     });
   }
 
   /// Check whether the user has an active premium subscription.
-  ///
-  /// Checks server API → cached value → false.
-  /// Caches for 5 minutes to avoid hammering on every tap.
   Future<bool> isPremium() async {
-    // Refresh cache every 5 minutes
     if (_isPremiumCached != null &&
         _premiumCacheTime != null &&
-        DateTime.now().difference(_premiumCacheTime!).inMinutes < 5) {
+        DateTime.now().difference(_premiumCacheTime!) < _premiumTtl) {
       return _isPremiumCached!;
     }
 
-    // Server-side check (synced via App Store Server Notifications)
     try {
       final status = await PaymentService(ApiClient()).getStatus();
       _isPremiumCached = status['is_premium'] == true;
       _premiumCacheTime = DateTime.now();
     } catch (_) {
-      // Offline — use last known value, or default to false
       _isPremiumCached ??= false;
     }
     return _isPremiumCached!;
@@ -75,6 +77,8 @@ class FreemiumGateService {
   void clearPremiumCache() {
     _isPremiumCached = null;
     _premiumCacheTime = null;
+    _serverQuotaCached = null;
+    _serverQuotaCacheTime = null;
   }
 
   // ─── Buy Now gate ──────────────────────────────
@@ -165,7 +169,32 @@ class FreemiumGateService {
 
   /// Fetch server-side quota status. Returns null if offline or endpoint
   /// doesn't exist yet (backwards compatible).
+  ///
+  /// Cached for 5 minutes so rapid navigation (tapping through deal
+  /// cards) doesn't spam /usage/status/. Concurrent callers await the
+  /// same in-flight request.
   Future<Map<String, dynamic>?> _fetchServerQuota() async {
+    if (_serverQuotaCached != null &&
+        _serverQuotaCacheTime != null &&
+        DateTime.now().difference(_serverQuotaCacheTime!) < _quotaTtl) {
+      return _serverQuotaCached;
+    }
+    if (_inFlightQuota != null) return _inFlightQuota;
+
+    _inFlightQuota = _doFetchServerQuota();
+    try {
+      final result = await _inFlightQuota!;
+      if (result != null) {
+        _serverQuotaCached = result;
+        _serverQuotaCacheTime = DateTime.now();
+      }
+      return result;
+    } finally {
+      _inFlightQuota = null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _doFetchServerQuota() async {
     try {
       final api = ApiClient();
       if (!await api.hasTokens()) return null;
@@ -180,6 +209,9 @@ class FreemiumGateService {
 
   /// Notify server of a usage event (fire-and-forget).
   void _syncUsageToServer(String action) {
+    // Invalidate quota cache — next gate check will re-read the server.
+    _serverQuotaCached = null;
+    _serverQuotaCacheTime = null;
     Future(() async {
       try {
         final api = ApiClient();

@@ -12,13 +12,30 @@ class CacheInterceptor extends Interceptor {
   final int maxEntries;
   final Duration defaultTtl;
 
+  /// Per-path TTL overrides. Matching is substring against `options.path`.
+  /// First matching entry wins — more specific paths first.
+  final Map<String, Duration> pathTtl;
+
   final _cache = <String, _CacheEntry>{};
   final _inflight = <String, Completer<Response>>{};
 
   CacheInterceptor({
     this.maxEntries = 100,
     this.defaultTtl = const Duration(minutes: 2),
-  });
+    Map<String, Duration>? pathTtl,
+  }) : pathTtl = pathTtl ?? const {
+          // Featured brands / search prompts change ~weekly; cache for a day.
+          '/featured/': Duration(hours: 24),
+          // User preferences rarely change mid-session.
+          '/preferences/': Duration(minutes: 30),
+        };
+
+  Duration _ttlFor(String path) {
+    for (final entry in pathTtl.entries) {
+      if (path.contains(entry.key)) return entry.value;
+    }
+    return defaultTtl;
+  }
 
   @override
   Future<void> onRequest(
@@ -99,7 +116,7 @@ class CacheInterceptor extends Interceptor {
           data: response.data,
           statusCode: response.statusCode!,
           headers: response.headers,
-          expiresAt: DateTime.now().add(defaultTtl),
+          expiresAt: DateTime.now().add(_ttlFor(opts.path)),
         );
       }
 
