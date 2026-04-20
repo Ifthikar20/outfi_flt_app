@@ -33,6 +33,16 @@ class NotificationService {
     );
   }
 
+  /// Cheap poll for just the badge count. No row serialization.
+  Future<({int unread, int total})> summary() async {
+    final resp = await _api.get('/notifications/summary/');
+    final data = resp.data as Map<String, dynamic>? ?? const {};
+    return (
+      unread: (data['unread'] as num?)?.toInt() ?? 0,
+      total: (data['total'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   /// Mark specific notifications as read. Server silently ignores ids
   /// that don't belong to the user.
   Future<int> markRead(List<String> ids) async {

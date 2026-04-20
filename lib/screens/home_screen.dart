@@ -80,8 +80,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _refreshUnread() async {
     try {
-      final result =
-          await NotificationService(_prefsApi).list(unreadOnly: true, limit: 1);
+      // Cheap endpoint — returns only {unread, total}, no row payload.
+      final result = await NotificationService(_prefsApi).summary();
       if (mounted) setState(() => _unreadNotifications = result.unread);
     } catch (_) {
       // Non-fatal — keep last known badge count.
