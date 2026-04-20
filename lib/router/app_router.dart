@@ -16,11 +16,11 @@ import '../screens/fashion_board_share_screen.dart';
 import '../screens/profile_screen.dart';
 import '../screens/brand_screen.dart';
 import '../screens/product_detail_screen.dart';
-import '../screens/paywall_screen.dart';
 import '../screens/manage_subscription_screen.dart';
 import '../screens/preferences_screen.dart';
 import '../screens/deal_alerts_screen.dart';
 import '../screens/fashion_timeline_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/app_shell.dart';
 import '../models/deal.dart';
 import '../models/storyboard.dart';
@@ -191,32 +191,23 @@ final GoRouter appRouter = GoRouter(
       builder: (context, state) => const DealAlertsScreen(),
     ),
     GoRoute(
+      path: '/deal-alerts/:alertId',
+      builder: (context, state) {
+        final alertId = state.pathParameters['alertId'] ?? '';
+        return DealAlertsScreen(initialAlertId: alertId);
+      },
+    ),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
+    ),
+    GoRoute(
       path: '/timeline',
       builder: (context, state) => const FashionTimelineScreen(),
     ),
     GoRoute(
       path: '/subscription',
       builder: (context, state) => const ManageSubscriptionScreen(),
-    ),
-    GoRoute(
-      path: '/premium',
-      pageBuilder: (context, state) => CustomTransitionPage(
-        key: state.pageKey,
-        child: const PaywallScreen(),
-        transitionDuration: const Duration(milliseconds: 300),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 1),
-              end: Offset.zero,
-            ).animate(CurvedAnimation(
-              parent: animation,
-              curve: Curves.easeOutCubic,
-            )),
-            child: child,
-          );
-        },
-      ),
     ),
   ],
 );

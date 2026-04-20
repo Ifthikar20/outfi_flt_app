@@ -9,7 +9,22 @@ abstract class DealsEvent extends Equatable {
   List<Object?> get props => [];
 }
 
-class DealsFetchTrending extends DealsEvent {}
+class DealsFetchTrending extends DealsEvent {
+  final bool nearMe;
+  final double? latitude;
+  final double? longitude;
+  final int? maxDistance;
+
+  const DealsFetchTrending({
+    this.nearMe = false,
+    this.latitude,
+    this.longitude,
+    this.maxDistance,
+  });
+
+  @override
+  List<Object?> get props => [nearMe, latitude, longitude, maxDistance];
+}
 
 class DealsSearchRequested extends DealsEvent {
   final String query;

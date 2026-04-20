@@ -3,13 +3,11 @@ import 'dart:math';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-/// Provides a stable, persistent device identifier.
+/// Provides a stable, persistent device identifier for iOS.
 ///
-/// Uses the platform's native device ID:
-/// - iOS: `identifierForVendor` (persists until app uninstall)
-/// - Android: `id` (Android ID, persists across app installs)
-/// When the platform value is unavailable, generates a random 128-bit ID and
-/// persists it in secure storage so subsequent launches reuse the same value.
+/// Uses `identifierForVendor` (persists until app uninstall). When that
+/// value is unavailable, generates a random 128-bit ID and persists it in
+/// secure storage so subsequent launches reuse the same value.
 class DeviceInfoService {
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
@@ -25,12 +23,9 @@ class DeviceInfoService {
         final iosInfo = await _deviceInfo.iosInfo;
         _cachedDeviceId =
             iosInfo.identifierForVendor ?? await _persistentFallbackId();
-      } else if (Platform.isAndroid) {
-        final androidInfo = await _deviceInfo.androidInfo;
-        final androidId = androidInfo.id;
-        _cachedDeviceId =
-            androidId.isEmpty ? await _persistentFallbackId() : androidId;
       } else {
+        // Non-iOS platforms aren't supported, but we still return a stable
+        // id so unit tests and dev simulators don't crash.
         _cachedDeviceId = await _persistentFallbackId();
       }
     } catch (_) {
@@ -43,7 +38,6 @@ class DeviceInfoService {
   /// Returns the platform name for the current device.
   static String getPlatform() {
     if (Platform.isIOS) return 'ios';
-    if (Platform.isAndroid) return 'android';
     return 'unknown';
   }
 

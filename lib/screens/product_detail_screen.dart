@@ -13,6 +13,7 @@ import '../services/deal_alert_service.dart';
 import '../services/deal_service.dart';
 import '../services/freemium_gate_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/paywall_sheet.dart';
 import '../widgets/product/price_comparison_card.dart';
 import '../widgets/product/routing_page.dart';
 import '../widgets/product/similar_products_row.dart';
@@ -453,7 +454,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     // Freemium gate: 1 free buy redirect, then paywall.
     final gate = FreemiumGateService();
     if (!await gate.canBuy()) {
-      if (mounted) context.push('/premium');
+      if (mounted) await showPaywallSheet(context);
       return;
     }
     await gate.recordBuyClick();
@@ -497,7 +498,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         if (await gate.isPremium()) {
           // Premium users get 100 — let them through
         } else {
-          context.push('/premium');
+          await showPaywallSheet(context);
           return;
         }
       }
@@ -611,7 +612,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
       // At the free limit → paywall
       if (serverMsg.contains('Maximum') || serverMsg.contains('alert')) {
-        context.push('/premium');
+        await showPaywallSheet(context);
         return;
       }
 

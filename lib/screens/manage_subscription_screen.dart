@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart' as url_launcher;
@@ -7,6 +6,7 @@ import '../services/freemium_gate_service.dart';
 import '../services/payment_service.dart';
 import '../services/storekit_service.dart';
 import '../theme/app_theme.dart';
+import '../widgets/paywall_sheet.dart';
 
 /// Surface where a premium user can view plan details, cancel via the
 /// platform store, request a refund, or restore a prior purchase.
@@ -117,32 +117,15 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
   }
 
   Future<void> _openManageSubscription() async {
-    // iOS: App Store subscriptions page. Android: Play subscription settings.
-    // Apple and Google control cancellation and billing — we only link out.
-    if (Platform.isIOS) {
-      await _openUrl(_appleManageUrl);
-      return;
-    }
-    // Android deep link requires sku + package; leave package to the host
-    // app bundle id at build time.
-    final sku = _status['plan_id']?.toString() ?? '';
-    final pkg = _status['android_package']?.toString() ?? 'com.outfi.app';
-    final url = sku.isEmpty
-        ? 'https://play.google.com/store/account/subscriptions'
-        : 'https://play.google.com/store/account/subscriptions'
-            '?sku=$sku&package=$pkg';
-    await _openUrl(url);
+    // Apple controls cancellation and billing — we just link out to the
+    // App Store subscriptions page.
+    await _openUrl(_appleManageUrl);
   }
 
   Future<void> _requestRefund() async {
-    if (Platform.isIOS) {
-      // Apple's refund request portal. It handles auth and transaction
-      // lookup; we don't send identifiers along.
-      await _openUrl(_appleReportUrl);
-      return;
-    }
-    // Google refunds go through the Play Store help center.
-    await _openUrl('https://support.google.com/googleplay/answer/2479637');
+    // Apple's refund request portal. It handles auth and transaction
+    // lookup; we don't send identifiers along.
+    await _openUrl(_appleReportUrl);
   }
 
   Future<void> _restore() async {
@@ -304,9 +287,7 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
   List<Widget> _premiumActions() => [
         _actionButton(
           icon: Icons.open_in_new,
-          label: Platform.isIOS
-              ? 'Manage in App Store'
-              : 'Manage in Google Play',
+          label: 'Manage in App Store',
           subtitle: _cancelAtPeriodEnd
               ? 'Access continues until ${_renewalLabel ?? 'period end'}.'
               : 'Cancel or change your plan.',
@@ -316,9 +297,7 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
         _actionButton(
           icon: Icons.receipt_long,
           label: 'Request a refund',
-          subtitle: Platform.isIOS
-              ? 'Opens Apple\'s Report a Problem page.'
-              : 'Opens Google Play refund help.',
+          subtitle: 'Opens Apple\'s Report a Problem page.',
           onTap: _requestRefund,
         ),
         const SizedBox(height: 12),
@@ -345,7 +324,7 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
           icon: Icons.upgrade,
           label: 'Upgrade to Premium',
           subtitle: 'Unlock unlimited image searches and more alerts.',
-          onTap: () => context.push('/premium'),
+          onTap: () => showPaywallSheet(context),
         ),
         const SizedBox(height: 12),
         _actionButton(
@@ -401,11 +380,8 @@ class _ManageSubscriptionScreenState extends State<ManageSubscriptionScreen> {
   }
 
   Widget _fineprint() {
-    final text = Platform.isIOS
-        ? 'Billing is handled by Apple. Cancelling in the App Store stops '
-            'the next renewal; access continues until the current period ends.'
-        : 'Billing is handled by Google Play. Cancelling stops the next '
-            'renewal; access continues until the current period ends.';
+    const text = 'Billing is handled by Apple. Cancelling in the App Store stops '
+        'the next renewal; access continues until the current period ends.';
     return Text(
       text,
       style: const TextStyle(

@@ -36,7 +36,12 @@ class DealsBloc extends Bloc<DealsEvent, DealsState> {
   ) async {
     emit(DealsLoading());
     try {
-      final result = await _dealService.getTrending();
+      final result = await _dealService.getTrending(
+        nearMe: event.nearMe,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        maxDistance: event.maxDistance,
+      );
       emit(DealsLoaded(result));
     } catch (e) {
       emit(DealsError(e.toString()));

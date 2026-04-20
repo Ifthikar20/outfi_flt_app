@@ -6,8 +6,10 @@ import 'package:go_router/go_router.dart';
 import '../bloc/deals/deals_bloc.dart';
 import '../bloc/deals/deals_event.dart';
 import '../models/featured_content.dart';
+import '../services/api_client.dart';
 import '../services/featured_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/deal_card.dart';
 import '../widgets/loading_shimmer.dart';
@@ -36,7 +38,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   // Location
   final _locationService = LocationService();
+  final _prefsApi = ApiClient();
   LocationInfo? _location;
+  int _maxDistanceMiles = 25;
 
   // API-driven data (replaces hardcoded demo data)
   List<FeaturedBrand> _brands = [];
@@ -45,6 +49,10 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _featuredLoaded = false;
   int _retryCount = 0;
   static const int _maxRetries = 3;
+
+  // Notifications badge
+  int _unreadNotifications = 0;
+  Timer? _unreadPoll;
 
   // Fallback prompts shown while API loads
   static const _fallbackPrompts = [
@@ -61,9 +69,61 @@ class _HomeScreenState extends State<HomeScreen> {
     _taglineTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) setState(() => _taglineIndex = (_taglineIndex + 1) % _taglines.length);
     });
+    // Poll the notification unread-count on a slow cadence. Server-side
+    // query is indexed on (user, is_read) so this is cheap.
+    _refreshUnread();
+    _unreadPoll = Timer.periodic(
+      const Duration(minutes: 2),
+      (_) => _refreshUnread(),
+    );
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      // Cheap endpoint — returns only {unread, total}, no row payload.
+      final result = await NotificationService(_prefsApi).summary();
+      if (mounted) setState(() => _unreadNotifications = result.unread);
+    } catch (_) {
+      // Non-fatal — keep last known badge count.
+    }
   }
 
   Future<void> _loadLocation() async {
+    // 1. Try saved preferences first (user's remembered zip).
+    try {
+      final resp = await _prefsApi.get('/preferences/');
+      final data = resp.data as Map<String, dynamic>? ?? const {};
+      final lat = (data['default_latitude'] as num?)?.toDouble();
+      final lng = (data['default_longitude'] as num?)?.toDouble();
+      final name = data['default_location_name'] as String? ?? '';
+      final radius = (data['max_distance_miles'] as num?)?.toInt();
+      if (lat != null && lng != null) {
+        if (mounted) {
+          setState(() {
+            _location = LocationInfo(
+              city: name.isNotEmpty ? name : 'Saved location',
+              area: '',
+              country: '',
+              latitude: lat,
+              longitude: lng,
+            );
+            if (radius != null && radius > 0) _maxDistanceMiles = radius;
+          });
+          // Refresh feed with saved location so near-me results appear.
+          context.read<DealsBloc>().add(DealsFetchTrending(
+            nearMe: true,
+            latitude: lat,
+            longitude: lng,
+            maxDistance: _maxDistanceMiles,
+          ));
+        }
+        return;
+      }
+    } catch (_) {
+      // Unauthenticated or offline — fall through to device GPS.
+    }
+
+    // 2. Fall back to device GPS (no persistence, no feed refresh).
     final loc = await _locationService.getCurrentLocation();
     if (mounted && loc != null) {
       setState(() => _location = loc);
@@ -164,8 +224,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _setLocationFromZip(String zip) {
-    // Show zip as location immediately, geocode in background
+  Future<void> _setLocationFromZip(String zip) async {
+    // Show zip as location immediately while we geocode in the background.
     setState(() {
       _location = LocationInfo(
         city: zip,
@@ -175,12 +235,40 @@ class _HomeScreenState extends State<HomeScreen> {
         longitude: 0,
       );
     });
-    // Try to geocode the zip
-    _locationService.geocodeZip(zip).then((loc) {
-      if (mounted && loc != null) {
-        setState(() => _location = loc);
-      }
-    });
+
+    final loc = await _locationService.geocodeZip(zip);
+    if (!mounted) return;
+
+    if (loc == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't find that zip code.")),
+      );
+      return;
+    }
+
+    setState(() => _location = loc);
+
+    // Persist as user's default location so other screens (image search,
+    // preferences) pick it up. Fire-and-forget: failure doesn't block the feed.
+    try {
+      await _prefsApi.patch('/preferences/', data: {
+        'default_latitude': loc.latitude,
+        'default_longitude': loc.longitude,
+        'default_location_name': loc.displayName.isNotEmpty ? loc.displayName : zip,
+        'max_distance_miles': _maxDistanceMiles,
+      });
+    } catch (_) {
+      // Non-fatal — user can retry from preferences screen.
+    }
+
+    // Refresh the feed in near-me mode so local marketplace results appear.
+    if (!mounted) return;
+    context.read<DealsBloc>().add(DealsFetchTrending(
+      nearMe: true,
+      latitude: loc.latitude,
+      longitude: loc.longitude,
+      maxDistance: _maxDistanceMiles,
+    ));
   }
 
   Future<void> _loadFeaturedContent() async {
@@ -228,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.dispose();
     _promptTimer?.cancel();
     _taglineTimer?.cancel();
+    _unreadPoll?.cancel();
     super.dispose();
   }
 
@@ -248,45 +337,102 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Location row
-                    GestureDetector(
-                      onTap: _showLocationPicker,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: _location != null
-                                ? AppTheme.textPrimary
-                                : AppTheme.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                _location?.displayName ?? 'Set your location',
-                                key: ValueKey(_location?.displayName ?? 'none'),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                    // Location row + notifications bell
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _showLocationPicker,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 16,
                                   color: _location != null
                                       ? AppTheme.textPrimary
                                       : AppTheme.textMuted,
-                                  letterSpacing: 0.2,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Text(
+                                      _location?.displayName ??
+                                          'Set your location',
+                                      key: ValueKey(
+                                          _location?.displayName ?? 'none'),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: _location != null
+                                            ? AppTheme.textPrimary
+                                            : AppTheme.textMuted,
+                                        letterSpacing: 0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ],
                             ),
                           ),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: AppTheme.textMuted,
+                        ),
+                        // Notifications bell with unread badge
+                        InkResponse(
+                          onTap: () async {
+                            await context.push('/notifications');
+                            if (mounted) _refreshUnread();
+                          },
+                          radius: 22,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                const Icon(
+                                  Icons.notifications_none_rounded,
+                                  size: 22,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                if (_unreadNotifications > 0)
+                                  Positioned(
+                                    top: -2,
+                                    right: -4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 1),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 14, minHeight: 14),
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.error,
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(8)),
+                                      ),
+                                      child: Text(
+                                        _unreadNotifications > 99
+                                            ? '99+'
+                                            : '$_unreadNotifications',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
 

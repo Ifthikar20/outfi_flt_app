@@ -14,7 +14,8 @@ import '../theme/app_theme.dart';
 import '../widgets/loading_shimmer.dart';
 
 class DealAlertsScreen extends StatefulWidget {
-  const DealAlertsScreen({super.key});
+  final String? initialAlertId;
+  const DealAlertsScreen({super.key, this.initialAlertId});
 
   @override
   State<DealAlertsScreen> createState() => _DealAlertsScreenState();
@@ -24,7 +25,15 @@ class _DealAlertsScreenState extends State<DealAlertsScreen> {
   @override
   void initState() {
     super.initState();
-    context.read<DealAlertsBloc>().add(DealAlertsFetchRequested());
+    if (widget.initialAlertId != null && widget.initialAlertId!.isNotEmpty) {
+      // Deep-link from a notification: jump straight to that alert's
+      // detail view. Bloc still guards auth + ownership on the server.
+      context
+          .read<DealAlertsBloc>()
+          .add(DealAlertDetailRequested(widget.initialAlertId!));
+    } else {
+      context.read<DealAlertsBloc>().add(DealAlertsFetchRequested());
+    }
   }
 
   void _showCreateSheet() {
@@ -373,6 +382,7 @@ class _AlertDetailView extends StatefulWidget {
 
 class _AlertDetailViewState extends State<_AlertDetailView> {
   Timer? _ticker;
+  Timer? _checkingPoll;
   DateTime _now = DateTime.now();
 
   @override
@@ -383,15 +393,50 @@ class _AlertDetailViewState extends State<_AlertDetailView> {
       if (!mounted) return;
       setState(() => _now = DateTime.now());
     });
+    // If the alert is fresh and empty, the one-shot matcher is running
+    // server-side. Poll every 8s for up to 2 minutes to show results as
+    // soon as they're written.
+    if (_isChecking) {
+      _checkingPoll = Timer.periodic(const Duration(seconds: 8), (t) {
+        if (!mounted) {
+          t.cancel();
+          return;
+        }
+        if (!_isChecking) {
+          t.cancel();
+          return;
+        }
+        context
+            .read<DealAlertsBloc>()
+            .add(DealAlertDetailRequested(widget.alert.id));
+      });
+      // Cancel after 2 minutes regardless — either results came in or
+      // something went wrong and we stop hammering.
+      Timer(const Duration(minutes: 2), () => _checkingPoll?.cancel());
+    }
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
+    _checkingPoll?.cancel();
     super.dispose();
   }
 
   DealAlert get alert => widget.alert;
+
+  /// True only while the first server-side check is still pending.
+  ///
+  /// Backend sets `last_checked_at` whenever the matcher finishes a
+  /// run for this alert (even when it finds zero deals). So the
+  /// presence of that timestamp is the single source of truth — if
+  /// it's null the one-shot hasn't completed; if it's set the check
+  /// is done and we should stop polling immediately whether or not
+  /// results were found.
+  bool get _isChecking {
+    if (alert.recentMatches.isNotEmpty) return false;
+    return alert.lastCheckedAt == null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -460,20 +505,42 @@ class _AlertDetailViewState extends State<_AlertDetailView> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Container(
-                          width: 64, height: 64,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
                             color: AppTheme.accent.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.search_rounded, size: 32, color: AppTheme.accent),
+                          child: _isChecking
+                              ? const Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: CircularProgressIndicator(
+                                    color: AppTheme.accent,
+                                    strokeWidth: 2.4,
+                                  ),
+                                )
+                              : const Icon(Icons.search_rounded,
+                                  size: 32, color: AppTheme.accent),
                         ),
                         const SizedBox(height: 20),
-                        Text('Searching for deals...', style: Theme.of(context).textTheme.titleMedium),
+                        Text(
+                          _isChecking
+                              ? 'Checking marketplaces…'
+                              : 'No matches yet',
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 8),
                         Text(
-                          'We check marketplaces every 4 hours.\nNew deals will appear here automatically.',
+                          _isChecking
+                              ? "We're fetching the first batch of deals\n"
+                                  'for this alert. This usually takes under a minute.'
+                              : 'We check marketplaces every 4 hours.\n'
+                                  'New deals will appear here automatically.',
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13, color: AppTheme.textSecondary, height: 1.5),
+                          style: const TextStyle(
+                              fontSize: 13,
+                              color: AppTheme.textSecondary,
+                              height: 1.5),
                         ),
                       ],
                     ),
