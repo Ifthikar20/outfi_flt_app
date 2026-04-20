@@ -425,15 +425,17 @@ class _AlertDetailViewState extends State<_AlertDetailView> {
 
   DealAlert get alert => widget.alert;
 
-  /// True when the alert has no matches yet AND the server hasn't
-  /// completed its first check. Used to show the "Checking..." state.
+  /// True only while the first server-side check is still pending.
+  ///
+  /// Backend sets `last_checked_at` whenever the matcher finishes a
+  /// run for this alert (even when it finds zero deals). So the
+  /// presence of that timestamp is the single source of truth — if
+  /// it's null the one-shot hasn't completed; if it's set the check
+  /// is done and we should stop polling immediately whether or not
+  /// results were found.
   bool get _isChecking {
     if (alert.recentMatches.isNotEmpty) return false;
-    final checkedAt = alert.lastCheckedAt;
-    if (checkedAt == null) return true;
-    // If backend ran the check less than 90s ago and found nothing,
-    // give it another beat in case the one-shot is still completing.
-    return DateTime.now().difference(checkedAt).inSeconds < 90;
+    return alert.lastCheckedAt == null;
   }
 
   @override
