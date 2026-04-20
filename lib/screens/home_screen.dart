@@ -9,6 +9,7 @@ import '../models/featured_content.dart';
 import '../services/api_client.dart';
 import '../services/featured_service.dart';
 import '../services/location_service.dart';
+import '../services/notification_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/deal_card.dart';
 import '../widgets/loading_shimmer.dart';
@@ -49,6 +50,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _retryCount = 0;
   static const int _maxRetries = 3;
 
+  // Notifications badge
+  int _unreadNotifications = 0;
+  Timer? _unreadPoll;
+
   // Fallback prompts shown while API loads
   static const _fallbackPrompts = [
     'Discover modest fashion...',
@@ -64,6 +69,23 @@ class _HomeScreenState extends State<HomeScreen> {
     _taglineTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (mounted) setState(() => _taglineIndex = (_taglineIndex + 1) % _taglines.length);
     });
+    // Poll the notification unread-count on a slow cadence. Server-side
+    // query is indexed on (user, is_read) so this is cheap.
+    _refreshUnread();
+    _unreadPoll = Timer.periodic(
+      const Duration(minutes: 2),
+      (_) => _refreshUnread(),
+    );
+  }
+
+  Future<void> _refreshUnread() async {
+    try {
+      final result =
+          await NotificationService(_prefsApi).list(unreadOnly: true, limit: 1);
+      if (mounted) setState(() => _unreadNotifications = result.unread);
+    } catch (_) {
+      // Non-fatal — keep last known badge count.
+    }
   }
 
   Future<void> _loadLocation() async {
@@ -294,6 +316,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _scrollController.dispose();
     _promptTimer?.cancel();
     _taglineTimer?.cancel();
+    _unreadPoll?.cancel();
     super.dispose();
   }
 
@@ -314,45 +337,102 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Location row
-                    GestureDetector(
-                      onTap: _showLocationPicker,
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.location_on_outlined,
-                            size: 16,
-                            color: _location != null
-                                ? AppTheme.textPrimary
-                                : AppTheme.textMuted,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: AnimatedSwitcher(
-                              duration: const Duration(milliseconds: 300),
-                              child: Text(
-                                _location?.displayName ?? 'Set your location',
-                                key: ValueKey(_location?.displayName ?? 'none'),
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
+                    // Location row + notifications bell
+                    Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: _showLocationPicker,
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 16,
                                   color: _location != null
                                       ? AppTheme.textPrimary
                                       : AppTheme.textMuted,
-                                  letterSpacing: 0.2,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Text(
+                                      _location?.displayName ??
+                                          'Set your location',
+                                      key: ValueKey(
+                                          _location?.displayName ?? 'none'),
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                        color: _location != null
+                                            ? AppTheme.textPrimary
+                                            : AppTheme.textMuted,
+                                        letterSpacing: 0.2,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                  size: 18,
+                                  color: AppTheme.textMuted,
+                                ),
+                              ],
                             ),
                           ),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 18,
-                            color: AppTheme.textMuted,
+                        ),
+                        // Notifications bell with unread badge
+                        InkResponse(
+                          onTap: () async {
+                            await context.push('/notifications');
+                            if (mounted) _refreshUnread();
+                          },
+                          radius: 22,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 12),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                const Icon(
+                                  Icons.notifications_none_rounded,
+                                  size: 22,
+                                  color: AppTheme.textPrimary,
+                                ),
+                                if (_unreadNotifications > 0)
+                                  Positioned(
+                                    top: -2,
+                                    right: -4,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 1),
+                                      constraints: const BoxConstraints(
+                                          minWidth: 14, minHeight: 14),
+                                      decoration: const BoxDecoration(
+                                        color: AppTheme.error,
+                                        borderRadius: BorderRadius.all(
+                                            Radius.circular(8)),
+                                      ),
+                                      child: Text(
+                                        _unreadNotifications > 99
+                                            ? '99+'
+                                            : '$_unreadNotifications',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          height: 1.1,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 10),
 

@@ -20,6 +20,7 @@ import '../screens/manage_subscription_screen.dart';
 import '../screens/preferences_screen.dart';
 import '../screens/deal_alerts_screen.dart';
 import '../screens/fashion_timeline_screen.dart';
+import '../screens/notifications_screen.dart';
 import '../screens/app_shell.dart';
 import '../models/deal.dart';
 import '../models/storyboard.dart';
@@ -188,6 +189,17 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/deal-alerts',
       builder: (context, state) => const DealAlertsScreen(),
+    ),
+    GoRoute(
+      path: '/deal-alerts/:alertId',
+      builder: (context, state) {
+        final alertId = state.pathParameters['alertId'] ?? '';
+        return DealAlertsScreen(initialAlertId: alertId);
+      },
+    ),
+    GoRoute(
+      path: '/notifications',
+      builder: (context, state) => const NotificationsScreen(),
     ),
     GoRoute(
       path: '/timeline',
