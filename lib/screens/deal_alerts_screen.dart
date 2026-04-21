@@ -134,7 +134,16 @@ class _DealAlertsScreenState extends State<DealAlertsScreen> {
                 }
 
                 if (state is DealAlertsLoaded) {
-                  if (state.alerts.isEmpty) {
+                  // Per product spec: only show alerts that actually have
+                  // a product image (user uploaded one OR the matcher
+                  // already found at least one deal). Alerts with no
+                  // image are treated as "product not available" and
+                  // hidden from the list to avoid half-broken rows.
+                  final visible = state.alerts
+                      .where((a) => a.displayThumbnail.isNotEmpty)
+                      .toList();
+
+                  if (visible.isEmpty) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(32),
@@ -184,13 +193,13 @@ class _DealAlertsScreenState extends State<DealAlertsScreen> {
 
                   return ListView.separated(
                     padding: const EdgeInsets.all(16),
-                    itemCount: state.alerts.length,
+                    itemCount: visible.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 10),
                     itemBuilder: (_, i) => _AlertCard(
-                      alert: state.alerts[i],
+                      alert: visible[i],
                       onTap: () {
                         context.read<DealAlertsBloc>().add(
-                          DealAlertDetailRequested(state.alerts[i].id),
+                          DealAlertDetailRequested(visible[i].id),
                         );
                       },
                     ),
@@ -224,7 +233,9 @@ class _AlertCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Reference image or status icon
+            // Product thumbnail — server returns reference_image OR the
+            // latest match's image; we fall through locally if needed.
+            // The parent list filters out alerts where no image exists.
             Container(
               width: 48, height: 48,
               decoration: BoxDecoration(
@@ -236,9 +247,9 @@ class _AlertCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               clipBehavior: Clip.antiAlias,
-              child: alert.hasImage
+              child: alert.displayThumbnail.isNotEmpty
                   ? CachedNetworkImage(
-                      imageUrl: alert.referenceImage,
+                      imageUrl: alert.displayThumbnail,
                       fit: BoxFit.cover,
                       memCacheWidth: 96,
                       errorWidget: (_, __, ___) => Icon(

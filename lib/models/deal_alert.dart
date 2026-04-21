@@ -41,6 +41,12 @@ class DealAlert {
   final String description;
   final String searchQuery;
   final String referenceImage;
+
+  /// Server-computed best-effort thumbnail: reference image the user
+  /// uploaded, else the latest match's image, else an empty string.
+  /// The list view hides alerts with an empty thumbnail.
+  final String thumbnailUrl;
+
   final double? maxPrice;
   final String status;
   final bool isActive;
@@ -55,6 +61,7 @@ class DealAlert {
     required this.description,
     this.searchQuery = '',
     this.referenceImage = '',
+    this.thumbnailUrl = '',
     this.maxPrice,
     this.status = 'active',
     this.isActive = true,
@@ -68,6 +75,18 @@ class DealAlert {
   bool get isPaused => status == 'paused';
   bool get hasImage => referenceImage.isNotEmpty;
 
+  /// The URL the list row should render. Falls through:
+  ///   server `thumbnail_url` → `reference_image` → first recent match.
+  /// Empty string means no image is available for this alert.
+  String get displayThumbnail {
+    if (thumbnailUrl.isNotEmpty) return thumbnailUrl;
+    if (referenceImage.isNotEmpty) return referenceImage;
+    for (final m in recentMatches) {
+      if (m.imageUrl.isNotEmpty) return m.imageUrl;
+    }
+    return '';
+  }
+
   factory DealAlert.fromJson(Map<String, dynamic> json) {
     final matchesList = json['recent_matches'] as List<dynamic>? ?? [];
     return DealAlert(
@@ -75,6 +94,7 @@ class DealAlert {
       description: json['description'] ?? '',
       searchQuery: json['search_query'] ?? '',
       referenceImage: json['reference_image'] ?? '',
+      thumbnailUrl: json['thumbnail_url'] ?? '',
       maxPrice: json['max_price'] != null
           ? double.tryParse(json['max_price'].toString())
           : null,

@@ -272,23 +272,46 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadFeaturedContent() async {
-    try {
-      final service = context.read<FeaturedService>();
-      final content = await service.getFeaturedContent();
-      if (mounted) {
+    // Retry with exponential backoff on transient failures. The old path
+    // flipped _featuredLoaded=true on the first error and gave up —
+    // which is why brand cards sometimes disappeared after login when
+    // the initial fetch raced auth/cold-start.
+    const maxAttempts = _maxRetries;
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        final service = context.read<FeaturedService>();
+        final content = await service.getFeaturedContent();
+        if (!mounted) return;
+
+        // Treat an empty brands array as a transient failure (backend
+        // serves a static list; empty almost always means a blip).
+        if (content.brands.isEmpty && attempt < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: 400 * attempt * attempt));
+          continue;
+        }
+
         setState(() {
           _brands = content.brands;
           _searchPrompts = content.searchPrompts;
           _suggestions = content.quickSuggestions;
           _featuredLoaded = true;
+          _retryCount = 0;
         });
         _startPromptAnimation();
-      }
-    } catch (e) {
-      // Silently fail — the home screen still works with trending deals
-      debugPrint('Failed to load featured content: $e');
-      if (mounted) {
-        setState(() => _featuredLoaded = true);
+        return;
+      } catch (e) {
+        debugPrint(
+            'Featured content attempt $attempt/$maxAttempts failed: $e');
+        if (!mounted) return;
+        if (attempt == maxAttempts) {
+          // All retries exhausted — fall back to the built-in prompts
+          // so the header animation still works, and leave _brands
+          // empty so the brand row collapses instead of showing
+          // half-broken UI.
+          setState(() => _featuredLoaded = true);
+          return;
+        }
+        await Future.delayed(Duration(milliseconds: 400 * attempt * attempt));
       }
     }
   }
